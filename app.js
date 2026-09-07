@@ -168,7 +168,7 @@
     const key = (descriptor || '').toLowerCase().replace(/[\s-]/g, '_');
     const matched = BOM_ICON_MAP[key] || { desc: descriptor ? descriptor.replace(/_/g, ' ') : 'Fair', icon: 'clear', theme: 'clear' };
     let themeClass = isDay ? 'theme-day-clear' : 'theme-night-clear';
-    if (matched.theme === 'cloudy') themeClass = 'theme-cloudy';
+    if (matched.theme === 'cloudy') themeClass = isDay ? 'theme-day-cloudy' : 'theme-night-cloudy';
     else if (matched.theme === 'rain') themeClass = 'theme-rain';
     else if (matched.theme === 'snow') themeClass = 'theme-snow';
     else if (matched.theme === 'thunder') themeClass = 'theme-thunder';
@@ -238,20 +238,11 @@
 
   function getWeatherMeta(code, isDay = 1) {
     const info = WMO_CODES[code] || { desc: 'Clear', icon: 'clear', theme: 'clear' };
-    let themeClass = 'theme-day-clear';
-    if (!isDay) {
-      if (info.theme === 'clear') themeClass = 'theme-night-clear';
-      else if (info.theme === 'rain') themeClass = 'theme-rain';
-      else if (info.theme === 'snow') themeClass = 'theme-snow';
-      else if (info.theme === 'thunder') themeClass = 'theme-thunder';
-      else themeClass = 'theme-cloudy';
-    } else {
-      if (info.theme === 'clear') themeClass = 'theme-day-clear';
-      else if (info.theme === 'cloudy') themeClass = 'theme-cloudy';
-      else if (info.theme === 'rain') themeClass = 'theme-rain';
-      else if (info.theme === 'snow') themeClass = 'theme-snow';
-      else if (info.theme === 'thunder') themeClass = 'theme-thunder';
-    }
+    let themeClass = isDay ? 'theme-day-clear' : 'theme-night-clear';
+    if (info.theme === 'cloudy') themeClass = isDay ? 'theme-day-cloudy' : 'theme-night-cloudy';
+    else if (info.theme === 'rain') themeClass = 'theme-rain';
+    else if (info.theme === 'snow') themeClass = 'theme-snow';
+    else if (info.theme === 'thunder') themeClass = 'theme-thunder';
     return {
       description: info.desc,
       iconType: info.icon,
@@ -305,11 +296,21 @@
         }
 
       case 'cloudy':
-        return `
-          <svg viewBox="0 0 64 64" fill="none">
-            <path d="M18 48h28a11 11 0 0 0 2-21.8 14 14 0 0 0-26.8-2A11.5 11.5 0 0 0 18 48z" fill="#cbd5e1" stroke="#94a3b8" stroke-width="2"/>
-            <path d="M14 42h22a9 9 0 0 0 1.5-17.8 11.5 11.5 0 0 0-21.8-1.6A9.5 9.5 0 0 0 14 42z" fill="#94a3b8" fill-opacity="0.5" stroke="#64748b" stroke-width="1.5"/>
-          </svg>`;
+        if (isDay) {
+          return `
+            <svg viewBox="0 0 64 64" fill="none">
+              <circle cx="23" cy="22" r="10" fill="#fde047" stroke="#f59e0b" stroke-width="2"/>
+              <path d="M18 48h28a11 11 0 0 0 2-21.8 14 14 0 0 0-26.8-2A11.5 11.5 0 0 0 18 48z" fill="#cbd5e1" stroke="#94a3b8" stroke-width="2"/>
+              <path d="M14 42h22a9 9 0 0 0 1.5-17.8 11.5 11.5 0 0 0-21.8-1.6A9.5 9.5 0 0 0 14 42z" fill="#94a3b8" fill-opacity="0.6" stroke="#64748b" stroke-width="1.5"/>
+            </svg>`;
+        } else {
+          return `
+            <svg viewBox="0 0 64 64" fill="none">
+              <path d="M28 15a10 10 0 1 1-11 13 11 11 0 0 0 11-13z" fill="#e0e7ff" stroke="#a5b4fc" stroke-width="1.5"/>
+              <path d="M18 48h28a11 11 0 0 0 2-21.8 14 14 0 0 0-26.8-2A11.5 11.5 0 0 0 18 48z" fill="#cbd5e1" stroke="#94a3b8" stroke-width="2"/>
+              <path d="M14 42h22a9 9 0 0 0 1.5-17.8 11.5 11.5 0 0 0-21.8-1.6A9.5 9.5 0 0 0 14 42z" fill="#94a3b8" fill-opacity="0.6" stroke="#64748b" stroke-width="1.5"/>
+            </svg>`;
+        }
 
       case 'fog':
         return `
@@ -470,6 +471,22 @@
         p.style.width = p.style.height = 3 + Math.random() * 5 + 'px';
         p.style.animationDuration = 3 + Math.random() * 4 + 's';
         p.style.animationDelay = Math.random() * 3 + 's';
+        elements.weatherParticles.appendChild(p);
+      }
+    } else if (meta.category === 'cloudy') {
+      // Generate floating atmospheric cloud mist puffs
+      const count = 8;
+      for (let i = 0; i < count; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle particle-cloud';
+        p.style.left = (Math.random() * 95) + 'vw';
+        p.style.top = (5 + Math.random() * 55) + 'vh';
+        const sizeW = 180 + Math.random() * 220;
+        const sizeH = 45 + Math.random() * 55;
+        p.style.width = sizeW + 'px';
+        p.style.height = sizeH + 'px';
+        p.style.animationDuration = (24 + Math.random() * 18) + 's';
+        p.style.animationDelay = (Math.random() * -20) + 's';
         elements.weatherParticles.appendChild(p);
       }
     } else if (!isDay && meta.category === 'clear') {
