@@ -1,49 +1,40 @@
 # SkyPulse Weather Dashboard 🌦️
 
-A modern, fully-responsive, and visually stunning Weather Dashboard web application powered in real-time by the [Open-Meteo](https://open-meteo.com/) API.
+A modern, fully-responsive, and visually stunning Weather Dashboard web application powered in real-time by the **Australian Bureau of Meteorology (BOM) API** (`api.weather.bom.gov.au`) with global satellite fallback via [Open-Meteo](https://open-meteo.com/).
 
 ---
 
 ## ✨ Features
 
+- 🇦🇺 **Official Bureau of Meteorology (BOM) Ingestion**:
+  - Live ground meteorological observations (temperature, apparent "feels like", wind speed/direction, humidity, and rain since 9 AM).
+  - Ground observation station provenance (e.g. `📍 Sydney - Observatory Hill (066214)`).
+  - Official BOM synoptic forecast text descriptions.
+  - Active Bureau of Meteorology weather warning and hazard alert banners.
+  - Australian suburb, city, and postcode autocomplete search (e.g. "Sydney", "Parramatta", "2000", "3000").
+- ☀️ **Diurnal UV Solar Curve & Hazard Graphing**:
+  - Mini daylight progression curve (6 AM - 12 PM - 6 PM) in the UV Index card with current/peak hour markers.
+  - Interactive 24-hour Canvas graph with color-coded WHO risk hazard bands (Low, Moderate, High, Very High, Extreme) and peak UV callouts.
+- 📅 **BOM Extended Daily Forecast**:
+  - Daily forecast cards with date subtitles, weather icons, rain probability, and proportional temperature range bars.
+  - Interactive selection: click any day to synchronize the entire dashboard (hero card, atmospheric background, highlights, and hourly timeline) to that specific day.
+  - "Live Now" pulsing button for instant 1-click return to current live weather.
 - 📐 **Fully Resizable & Responsive to Any Browser Window**:
-  - Dynamically resizes from widescreen monitors (up to 4K) down to laptop screens, tablets, split-screen snap mode, and mobile viewports.
-  - Highlights matrix automatically adapts from 1 column up to 6 columns using fluid CSS grid auto-fit.
-  - Interactive Canvas 24-hour hourly trend curve automatically recalculates its width and redraws with sharp high-DPI scaling on window resize via `ResizeObserver`.
-- 🌍 **Global City Search with Instant Autocomplete**:
-  - Search any city, town, or region worldwide with instant suggestions as you type.
-  - Automatically queries the Open-Meteo Geocoding engine with debounce.
-- 🎯 **One-Click Geolocation ("Locate Me")**:
-  - Uses browser GPS/HTML5 geolocation to fetch local forecasts immediately.
-- 🌡️ **Comprehensive Hero Weather Card**:
-  - Current real-time temperature, condition badge, and dynamic custom vector weather icons.
-  - "Feels like" (apparent temperature), High / Low daily range, and current precipitation mm.
-- 📊 **6-Card Meteorological Highlights Matrix**:
-  - **Wind Status**: Speed in km/h or mph with an **interactive rotating compass needle** indicating heading and cardinal direction (N, NE, SW, etc.).
-  - **Humidity**: Moisture percentage with visual fill bar and comfort assessment.
-  - **UV Index**: Real-time UV rating (0–12+) with color-coded risk indicator and health advice.
-  - **Precipitation Chance**: Max chance of rain with visual probability bar.
-  - **Sun & Daylight Tracker**: Precise sunrise and sunset timings.
-  - **Surface Atmospheric Pressure**: Recorded in hPa with weather tendency interpretation.
-- ⏱️ **24-Hour Hourly Forecast with Dual Views**:
-  - **Card View**: Horizontally scrollable strip displaying hourly icons, temperatures, and rain chances.
-  - **Trend Graph View**: Custom high-DPI HTML5 Canvas chart displaying smooth temperature curves and precipitation probability bars.
-- 📅 **10-Day Extended Outlook**:
-  - 10-day forecast cards with date subtitles, weather icons, rain probability, and colored temperature range bars showing relative min/max gradients.
-  - Interactive selection: click any of the 10 days to sync the entire dashboard to that day's full telemetry.
+  - Dynamically adapts across all devices and window sizes from mobile to 4K widescreen monitors.
+  - Highlights matrix fluidly auto-fits from 1 to 6 columns without horizontal clipping.
+- ⏱️ **24-Hour Hourly Forecast with 3 Views**:
+  - **Cards**: Horizontally scrollable strip of hourly icons, temperatures, rain %, and UV tags.
+  - **Temp & Rain**: Dual interactive canvas chart with temperature line and rain probability bars.
+  - **UV Solar Curve**: High-DPI canvas graphing diurnal solar progression against hazard bands.
 - 🔄 **Instant Unit Switcher (°C / °F)**:
-  - Toggle between Metric (°C, km/h) and Imperial (°F, mph) on the fly without waiting for network reloads. Saved automatically in `localStorage`.
+  - Toggle between Metric (°C, km/h) and Imperial (°F, mph) on the fly without network reloads. Saved in `localStorage`.
 - ⭐ **Pinned / Favorites Bar**:
-  - Pin any searched city to your quick-access favorites bar with one click.
-  - Preloaded with major world cities (Sydney, New York, London, Tokyo, Paris).
+  - Preloaded with Australian state capitals (Sydney, Melbourne, Brisbane, Perth, Adelaide, Hobart, Canberra).
+  - Pin any searched suburb or location with 1 click.
 - 🎨 **Dynamic Atmospheric Visual Themes**:
-  - Adapts to weather condition & day/night cycle:
-    - Clear Sunny Day
-    - Starry Night Sky (with animated twinkling stars)
-    - Cloudy & Overcast
-    - Rainy (with animated falling raindrops)
-    - Snowfall (with drifting snowflakes)
-    - Thunderstorm
+  - Adapts to weather conditions & day/night cycles with animated rain, drifting snow, stars, and atmospheric gradients.
+- 🌍 **Global Fallback**:
+  - Automatic fallback to Open-Meteo when searching international cities outside Australia.
 
 ---
 

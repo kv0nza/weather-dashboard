@@ -261,6 +261,24 @@ body.theme-thunder .weather-glow {
   flex-shrink: 0;
 }
 
+.brand-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.source-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(56, 189, 248, 0.18);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: var(--accent-cyan);
+}
+
 .brand-text h1 {
   font-size: clamp(1.1rem, 2vw, 1.35rem);
   font-weight: 800;
@@ -612,6 +630,52 @@ body.theme-thunder .weather-glow {
   display: none;
 }
 
+/* Official BOM Weather Warning Banner */
+.bom-warning-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px;
+  background: rgba(239, 68, 68, 0.16);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 18px rgba(239, 68, 68, 0.2);
+  width: 100%;
+}
+
+.bom-warning-banner.hidden {
+  display: none;
+}
+
+.warning-icon-wrap {
+  color: #f87171;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  animation: warningPulse 2s ease-in-out infinite;
+}
+
+@keyframes warningPulse {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.12); opacity: 1; filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.6)); }
+}
+
+.warning-text-wrap strong {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #fca5a5;
+  margin-bottom: 2px;
+}
+
+.warning-text-wrap p {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.88);
+  line-height: 1.35;
+  margin: 0;
+}
+
 /* ==========================================================================
    Dashboard Grid (Fluid 2-Column or Single Column)
    ========================================================================== */
@@ -768,6 +832,38 @@ body.theme-thunder .weather-glow {
   100% { transform: scale(0.85); opacity: 0.6; }
 }
 
+.bom-station-wrap {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+}
+
+.bom-station-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--accent-cyan);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bom-station-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  box-shadow: 0 0 6px var(--accent-cyan);
+  flex-shrink: 0;
+}
+
 .weather-badge {
   padding: 6px 14px;
   background: rgba(255, 255, 255, 0.12);
@@ -823,6 +919,26 @@ body.theme-thunder .weather-glow {
 .weather-icon-large svg {
   width: 100%;
   height: 100%;
+}
+
+.bom-synoptic-box {
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+
+.bom-synoptic-box.hidden {
+  display: none;
+}
+
+.bom-synoptic-text {
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+  font-style: italic;
 }
 
 .hero-bottom {

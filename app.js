@@ -19,15 +19,18 @@
   };
 
   const DEFAULT_FAVORITES = [
-    { name: 'Sydney', country: 'Australia', countryCode: 'AU', lat: -33.8688, lon: 151.2093 },
-    { name: 'New York', country: 'United States', countryCode: 'US', lat: 40.7128, lon: -74.0060 },
-    { name: 'London', country: 'United Kingdom', countryCode: 'GB', lat: 51.5074, lon: -0.1278 },
-    { name: 'Tokyo', country: 'Japan', countryCode: 'JP', lat: 35.6895, lon: 139.6917 },
-    { name: 'Paris', country: 'France', countryCode: 'FR', lat: 48.8566, lon: 2.3522 },
+    { name: 'Sydney', state: 'NSW', country: 'Australia', countryCode: 'NSW', geohash: 'r3gx2s', lat: -33.8688, lon: 151.2093, source: 'bom' },
+    { name: 'Melbourne', state: 'VIC', country: 'Australia', countryCode: 'VIC', geohash: 'r1r0fu', lat: -37.8136, lon: 144.9631, source: 'bom' },
+    { name: 'Brisbane', state: 'QLD', country: 'Australia', countryCode: 'QLD', geohash: 'r7hgdm', lat: -27.4698, lon: 153.0251, source: 'bom' },
+    { name: 'Perth', state: 'WA', country: 'Australia', countryCode: 'WA', geohash: 'qd66hr', lat: -31.9505, lon: 115.8605, source: 'bom' },
+    { name: 'Adelaide', state: 'SA', country: 'Australia', countryCode: 'SA', geohash: 'r1f93c', lat: -34.9285, lon: 138.6007, source: 'bom' },
+    { name: 'Hobart', state: 'TAS', country: 'Australia', countryCode: 'TAS', geohash: 'r22u08', lat: -42.8821, lon: 147.3272, source: 'bom' },
+    { name: 'Canberra', state: 'ACT', country: 'Australia', countryCode: 'ACT', geohash: 'r3dp5h', lat: -35.2809, lon: 149.1300, source: 'bom' },
   ];
 
   // DOM Elements
   const elements = {
+    sourceBadge: document.getElementById('sourceBadge'),
     weatherBg: document.getElementById('weatherBg'),
     weatherParticles: document.getElementById('weatherParticles'),
     citySearchInput: document.getElementById('citySearchInput'),
@@ -41,10 +44,15 @@
     pinCurrentBtn: document.getElementById('pinCurrentBtn'),
     statusBanner: document.getElementById('statusBanner'),
     statusMessage: document.getElementById('statusMessage'),
+    bomWarningBanner: document.getElementById('bomWarningBanner'),
+    bomWarningTitle: document.getElementById('bomWarningTitle'),
+    bomWarningText: document.getElementById('bomWarningText'),
     cityName: document.getElementById('cityName'),
     countryBadge: document.getElementById('countryBadge'),
     localTime: document.getElementById('localTime'),
     resetLiveBtn: document.getElementById('resetLiveBtn'),
+    bomStationPill: document.getElementById('bomStationPill'),
+    bomStationName: document.getElementById('bomStationName'),
     conditionBadge: document.getElementById('conditionBadge'),
     conditionText: document.getElementById('conditionText'),
     currentTemp: document.getElementById('currentTemp'),
@@ -52,7 +60,11 @@
     heroWeatherIcon: document.getElementById('heroWeatherIcon'),
     apparentTemp: document.getElementById('apparentTemp'),
     tempRange: document.getElementById('tempRange'),
+    precipPillLabel: document.getElementById('precipPillLabel'),
     precipitationCurrent: document.getElementById('precipitationCurrent'),
+    bomSynopticBox: document.getElementById('bomSynopticBox'),
+    bomSynopticText: document.getElementById('bomSynopticText'),
+    dailyForecastTitle: document.getElementById('dailyForecastTitle'),
     dailyForecastList: document.getElementById('dailyForecastList'),
     windSpeed: document.getElementById('windSpeed'),
     windUnit: document.getElementById('windUnit'),
@@ -119,6 +131,110 @@
     96: { desc: 'Thunderstorm with Hail', icon: 'thunder', theme: 'thunder' },
     99: { desc: 'Severe Hailstorm', icon: 'thunder', theme: 'thunder' },
   };
+
+  // Bureau of Meteorology (BOM) Descriptor Mapping
+  const BOM_ICON_MAP = {
+    sunny: { desc: 'Sunny', icon: 'clear', theme: 'clear' },
+    clear: { desc: 'Clear', icon: 'clear', theme: 'clear' },
+    mostly_sunny: { desc: 'Mostly Sunny', icon: 'mostly-clear', theme: 'clear' },
+    partly_cloudy: { desc: 'Partly Cloudy', icon: 'partly-cloudy', theme: 'cloudy' },
+    cloudy: { desc: 'Cloudy', icon: 'cloudy', theme: 'cloudy' },
+    overcast: { desc: 'Overcast', icon: 'cloudy', theme: 'cloudy' },
+    shower: { desc: 'Showers', icon: 'rain', theme: 'rain' },
+    showers: { desc: 'Showers', icon: 'rain', theme: 'rain' },
+    light_shower: { desc: 'Light Showers', icon: 'drizzle', theme: 'rain' },
+    light_showers: { desc: 'Light Showers', icon: 'drizzle', theme: 'rain' },
+    heavy_shower: { desc: 'Heavy Showers', icon: 'heavy-rain', theme: 'rain' },
+    heavy_showers: { desc: 'Heavy Showers', icon: 'heavy-rain', theme: 'rain' },
+    drizzle: { desc: 'Drizzle', icon: 'drizzle', theme: 'rain' },
+    rain: { desc: 'Rain', icon: 'rain', theme: 'rain' },
+    storm: { desc: 'Thunderstorm', icon: 'thunder', theme: 'thunder' },
+    storms: { desc: 'Thunderstorms', icon: 'thunder', theme: 'thunder' },
+    thunderstorm: { desc: 'Thunderstorm', icon: 'thunder', theme: 'thunder' },
+    snow: { desc: 'Snow', icon: 'snow', theme: 'snow' },
+    light_snow: { desc: 'Light Snow', icon: 'snow', theme: 'snow' },
+    heavy_snow: { desc: 'Heavy Snow', icon: 'heavy-snow', theme: 'snow' },
+    fog: { desc: 'Fog', icon: 'fog', theme: 'cloudy' },
+    mist: { desc: 'Mist', icon: 'fog', theme: 'cloudy' },
+    haze: { desc: 'Haze', icon: 'fog', theme: 'cloudy' },
+    smoke: { desc: 'Smoke Haze', icon: 'fog', theme: 'cloudy' },
+    dust: { desc: 'Dust', icon: 'fog', theme: 'cloudy' },
+    wind: { desc: 'Windy', icon: 'mostly-clear', theme: 'clear' },
+    windy: { desc: 'Windy', icon: 'mostly-clear', theme: 'clear' },
+    frost: { desc: 'Frost', icon: 'snow', theme: 'snow' },
+  };
+
+  function getBomWeatherMeta(descriptor, isDay = 1) {
+    const key = (descriptor || '').toLowerCase().replace(/[\s-]/g, '_');
+    const matched = BOM_ICON_MAP[key] || { desc: descriptor ? descriptor.replace(/_/g, ' ') : 'Fair', icon: 'clear', theme: 'clear' };
+    let themeClass = isDay ? 'theme-day-clear' : 'theme-night-clear';
+    if (matched.theme === 'cloudy') themeClass = 'theme-cloudy';
+    else if (matched.theme === 'rain') themeClass = 'theme-rain';
+    else if (matched.theme === 'snow') themeClass = 'theme-snow';
+    else if (matched.theme === 'thunder') themeClass = 'theme-thunder';
+
+    return {
+      description: matched.desc,
+      iconType: matched.icon,
+      themeClass,
+      category: matched.theme,
+    };
+  }
+
+  // Base32 Geohash Encoder for BOM coordinates
+  function encodeGeohash(latitude, longitude, precision = 6) {
+    const B32 = '0123456789bcdefghjkmnpqrstuvwxyz';
+    let isEven = true;
+    let latMin = -90, latMax = 90;
+    let lonMin = -180, lonMax = 180;
+    let bit = 0;
+    let ch = 0;
+    let geohash = '';
+
+    while (geohash.length < precision) {
+      if (isEven) {
+        const mid = (lonMin + lonMax) / 2;
+        if (longitude >= mid) {
+          ch |= (1 << (4 - bit));
+          lonMin = mid;
+        } else {
+          lonMax = mid;
+        }
+      } else {
+        const mid = (latMin + latMax) / 2;
+        if (latitude >= mid) {
+          ch |= (1 << (4 - bit));
+          latMin = mid;
+        } else {
+          latMax = mid;
+        }
+      }
+      isEven = !isEven;
+      if (bit < 4) {
+        bit++;
+      } else {
+        geohash += B32[ch];
+        bit = 0;
+        ch = 0;
+      }
+    }
+    return geohash;
+  }
+
+  // Cardinal Wind Direction to Degrees Map
+  const CARDINAL_TO_DEG = {
+    N: 0, NNE: 22.5, NE: 45, ENE: 67.5,
+    E: 90, ESE: 112.5, SE: 135, SSE: 157.5,
+    S: 180, SSW: 202.5, SW: 225, WSW: 247.5,
+    W: 270, WNW: 292.5, NW: 315, NNW: 337.5,
+    CALM: 0, VARIABLE: 0
+  };
+
+  function getDegreesFromCardinal(cardinal) {
+    if (typeof cardinal === 'number') return cardinal;
+    if (!cardinal) return 0;
+    return CARDINAL_TO_DEG[cardinal.toString().toUpperCase()] || 0;
+  }
 
   function getWeatherMeta(code, isDay = 1) {
     const info = WMO_CODES[code] || { desc: 'Clear', icon: 'clear', theme: 'clear' };
@@ -361,24 +477,86 @@
   // API Fetching: Forecast & Geocoding
   // =========================================================================
 
+  // =========================================================================
+  // API Fetching: Bureau of Meteorology (BOM) & Fallback
+  // =========================================================================
+
   async function fetchForecast(lat, lon, locationInfo) {
-    showStatus('Updating weather forecast...', false);
+    showStatus('Connecting to Bureau of Meteorology telemetry...', false);
     try {
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure&hourly=temperature_2m,precipitation_probability,weather_code,uv_index,is_day,relative_humidity_2m,surface_pressure,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max,uv_index_max,wind_speed_10m_max,wind_direction_10m_dominant&forecast_days=10&timezone=auto`;
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`Weather service error: ${response.status}`);
-      const data = await response.json();
+      let gh = locationInfo?.geohash;
 
-      state.weatherData = data;
-      state.currentLocation = locationInfo;
-      state.selectedDayIndex = 0; // Reset to live/today for newly loaded location
+      // If coordinates in Australia and no geohash, generate 6-char geohash
+      if (!gh && lat !== undefined && lon !== undefined) {
+        if (lat >= -45 && lat <= -9 && lon >= 110 && lon <= 155) {
+          gh = encodeGeohash(lat, lon, 6);
+        }
+      }
 
-      renderDashboard();
-      hideStatus();
+      // 1. Primary: If we have an Australian geohash, query official BOM endpoints
+      if (gh) {
+        const gh6 = gh.slice(0, 6);
+        const [obsRes, dailyRes, hourlyRes, warnRes] = await Promise.allSettled([
+          fetch(`https://api.weather.bom.gov.au/v1/locations/${gh6}/observations`),
+          fetch(`https://api.weather.bom.gov.au/v1/locations/${gh6}/forecasts/daily`),
+          fetch(`https://api.weather.bom.gov.au/v1/locations/${gh6}/forecasts/hourly`),
+          fetch(`https://api.weather.bom.gov.au/v1/locations/${gh6}/warnings`),
+        ]);
+
+        const obsData = obsRes.status === 'fulfilled' && obsRes.value.ok ? await obsRes.value.json() : null;
+        const dailyData = dailyRes.status === 'fulfilled' && dailyRes.value.ok ? await dailyRes.value.json() : null;
+        const hourlyData = hourlyRes.status === 'fulfilled' && hourlyRes.value.ok ? await hourlyRes.value.json() : null;
+        const warnData = warnRes.status === 'fulfilled' && warnRes.value.ok ? await warnRes.value.json() : null;
+
+        if (dailyData && dailyData.data && dailyData.data.length > 0) {
+          state.weatherData = {
+            source: 'bom',
+            observations: obsData ? obsData.data : null,
+            daily: dailyData.data,
+            hourly: hourlyData ? hourlyData.data : [],
+            warnings: warnData ? warnData.data : [],
+            geohash: gh6,
+          };
+          state.currentLocation = locationInfo || {
+            name: obsData?.data?.station?.name || 'Australian Location',
+            state: 'AU',
+            geohash: gh6,
+            lat,
+            lon,
+            source: 'bom',
+          };
+          state.selectedDayIndex = 0;
+          renderDashboard();
+          hideStatus();
+          return;
+        }
+      }
+
+      // 2. Fallback to Open-Meteo for international cities outside Australia
+      await fetchOpenMeteoForecast(lat, lon, locationInfo);
     } catch (err) {
       console.error('Forecast error:', err);
       showStatus('Unable to retrieve weather data. Please check connection and try again.', true);
     }
+  }
+
+  async function fetchOpenMeteoForecast(lat, lon, locationInfo) {
+    const safeLat = lat || -33.8688;
+    const safeLon = lon || 151.2093;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${safeLat}&longitude=${safeLon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure&hourly=temperature_2m,precipitation_probability,weather_code,uv_index,is_day,relative_humidity_2m,surface_pressure,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max,uv_index_max,wind_speed_10m_max,wind_direction_10m_dominant&forecast_days=10&timezone=auto`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Weather service error: ${response.status}`);
+    const data = await response.json();
+
+    state.weatherData = {
+      source: 'open-meteo',
+      ...data,
+    };
+    state.currentLocation = locationInfo || { name: 'Global Location', country: '', countryCode: 'OM', lat: safeLat, lon: safeLon };
+    state.selectedDayIndex = 0;
+
+    renderDashboard();
+    hideStatus();
   }
 
   async function searchCities(query) {
@@ -389,30 +567,70 @@
     }
 
     try {
-      const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query.trim())}&count=6&language=en&format=json`;
-      const res = await fetch(url);
-      if (!res.ok) return;
-      const data = await res.json();
-      renderSearchResults(data.results || []);
+      // 1. Search BOM Australian suburbs, cities & postcodes
+      const bomUrl = `https://api.weather.bom.gov.au/v1/locations?search=${encodeURIComponent(query.trim())}`;
+      const bomRes = await fetch(bomUrl);
+      if (bomRes.ok) {
+        const bomJson = await bomRes.json();
+        if (bomJson.data && bomJson.data.length > 0) {
+          renderSearchResults(bomJson.data.slice(0, 8), 'bom');
+          return;
+        }
+      }
+
+      // 2. Fallback to Open-Meteo for international searches
+      const omUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query.trim())}&count=6&language=en&format=json`;
+      const omRes = await fetch(omUrl);
+      if (omRes.ok) {
+        const omJson = await omRes.json();
+        renderSearchResults(omJson.results || [], 'open-meteo');
+        return;
+      }
+
+      renderSearchResults([], 'bom');
     } catch (err) {
-      console.error('Geocoding search failed:', err);
+      console.error('Location search failed:', err);
     }
   }
 
   async function reverseGeocode(lat, lon) {
     try {
-      const url = `https://geocoding-api.open-meteo.com/v1/search?latitude=${lat}&longitude=${lon}&count=1&format=json`;
-      // Note: Open-Meteo geocoding search works by name; for reverse geocoding coordinates fallback cleanly
-      return {
-        name: 'My Location',
-        country: '',
-        countryCode: 'GPS',
-        lat,
-        lon,
-      };
+      const bomRes = await fetch(`https://api.weather.bom.gov.au/v1/locations?search=${lat},${lon}`);
+      if (bomRes.ok) {
+        const bomJson = await bomRes.json();
+        if (bomJson.data && bomJson.data.length > 0) {
+          const loc = bomJson.data[0];
+          return {
+            name: loc.name,
+            state: loc.state || 'AU',
+            country: 'Australia',
+            countryCode: loc.state || 'AU',
+            geohash: loc.geohash,
+            lat,
+            lon,
+            source: 'bom',
+          };
+        }
+      }
+
+      if (lat >= -45 && lat <= -9 && lon >= 110 && lon <= 155) {
+        const gh = encodeGeohash(lat, lon, 6);
+        return {
+          name: 'My Location',
+          state: 'AU',
+          country: 'Australia',
+          countryCode: 'AU',
+          geohash: gh,
+          lat,
+          lon,
+          source: 'bom',
+        };
+      }
     } catch (e) {
-      return { name: 'Current Location', country: '', countryCode: 'GPS', lat, lon };
+      console.warn('Reverse geocode fallback:', e);
     }
+
+    return { name: 'Current Location', country: '', countryCode: 'GPS', lat, lon, source: 'open-meteo' };
   }
 
   // =========================================================================
@@ -426,13 +644,326 @@
 
   function renderDashboard() {
     if (!state.weatherData || !state.currentLocation) return;
+    if (state.weatherData.source === 'bom') {
+      renderBomDashboard();
+    } else {
+      renderOpenMeteoDashboard();
+    }
+  }
 
+  function renderBomDashboard() {
+    const { observations, daily, hourly, warnings } = state.weatherData;
+    const loc = state.currentLocation;
+    const isToday = state.selectedDayIndex === 0;
+    const validDays = daily.filter(d => d.temp_max !== null || d.temp_min !== null || d.icon_descriptor !== null);
+    const dIdx = Math.min(state.selectedDayIndex, validDays.length - 1);
+    const dayItem = validDays[dIdx];
+
+    // Source Badge
+    if (elements.sourceBadge) elements.sourceBadge.textContent = 'BOM Australia';
+
+    // Header City & State
+    elements.cityName.textContent = loc.name || 'Australia';
+    elements.countryBadge.textContent = loc.state || 'AU';
+
+    // Active Bureau Warnings Banner
+    if (elements.bomWarningBanner) {
+      const activeWarn = warnings && warnings.length > 0 ? warnings[0] : null;
+      if (activeWarn) {
+        elements.bomWarningTitle.textContent = activeWarn.title || activeWarn.short_title || 'BOM Weather Warning';
+        elements.bomWarningText.textContent = `${activeWarn.state || ''} ${activeWarn.type ? activeWarn.type.replace(/_/g, ' ').toUpperCase() : ''} — ${activeWarn.phase || 'Active'}`;
+        elements.bomWarningBanner.classList.remove('hidden');
+      } else {
+        elements.bomWarningBanner.classList.add('hidden');
+      }
+    }
+
+    // Observation Station Pill
+    if (elements.bomStationPill && elements.bomStationName) {
+      if (observations && observations.station) {
+        const distStr = observations.station.distance ? ` (${(observations.station.distance / 1000).toFixed(1)} km)` : '';
+        elements.bomStationName.textContent = `Observed at ${observations.station.name}${distStr}`;
+        elements.bomStationPill.classList.remove('hidden');
+      } else {
+        elements.bomStationName.textContent = 'Bureau of Meteorology Ground Station';
+        elements.bomStationPill.classList.remove('hidden');
+      }
+    }
+
+    let weatherMeta;
+    let heroTemp;
+    let apparentTemp;
+    let highTemp = dayItem.temp_max;
+    let lowTemp = dayItem.temp_min;
+    let precipText;
+    let windSpeedVal;
+    let windDirDeg;
+    let humidityVal;
+    let uvVal = dayItem.uv?.max_index || 0;
+    let sunriseVal = dayItem.astronomical?.sunrise_time;
+    let sunsetVal = dayItem.astronomical?.sunset_time;
+    let rainChanceVal = dayItem.rain?.chance || 0;
+    let pressureVal = 1013;
+
+    // Synoptic text description
+    if (elements.bomSynopticBox && elements.bomSynopticText) {
+      const synText = dayItem.extended_text || dayItem.short_text || '';
+      if (synText) {
+        elements.bomSynopticText.textContent = `"${synText}"`;
+        elements.bomSynopticBox.classList.remove('hidden');
+      } else {
+        elements.bomSynopticBox.classList.add('hidden');
+      }
+    }
+
+    const active24Hours = [];
+
+    if (isToday) {
+      if (elements.resetLiveBtn) elements.resetLiveBtn.classList.add('hidden');
+
+      const now = new Date();
+      elements.localTime.textContent = `Local time: ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', weekday: 'short', month: 'short', day: 'numeric' })}`;
+
+      const currentHour = now.getHours();
+      const isNight = currentHour < 6 || currentHour >= 18;
+      const desc = dayItem.icon_descriptor || (isNight ? 'clear' : 'sunny');
+      weatherMeta = getBomWeatherMeta(desc, isNight ? 0 : 1);
+
+      heroTemp = observations?.temp ?? dayItem.temp_max ?? 20;
+      apparentTemp = observations?.temp_feels_like ?? heroTemp;
+      highTemp = dayItem.temp_max ?? observations?.max_temp?.value ?? heroTemp;
+      lowTemp = dayItem.temp_min ?? observations?.min_temp?.value ?? heroTemp;
+
+      if (elements.precipPillLabel) elements.precipPillLabel.textContent = 'Rain (9 AM)';
+      const rainSince9 = observations?.rain_since_9am !== null && observations?.rain_since_9am !== undefined ? observations.rain_since_9am : 0;
+      precipText = `${rainSince9} mm`;
+
+      windSpeedVal = observations?.wind?.speed_kilometre ?? 15;
+      windDirDeg = getDegreesFromCardinal(observations?.wind?.direction ?? 'S');
+      humidityVal = observations?.humidity ?? 65;
+
+      if (elements.hourlyTitle) elements.hourlyTitle.textContent = 'BOM Hourly Forecast';
+      if (elements.hourlySubtitle) elements.hourlySubtitle.textContent = 'Next 24 Hours';
+
+      // Slicing next 24 hours from BOM hourly
+      for (let i = 0; i < Math.min(24, hourly.length); i++) {
+        const h = hourly[i];
+        active24Hours.push({
+          time: h.time,
+          temp: h.temp,
+          code: h.icon_descriptor || 'sunny',
+          pop: h.rain?.chance || 0,
+          uv: typeof h.uv === 'number' ? h.uv : 0,
+          isDay: !h.is_night,
+          humidity: h.relative_humidity || 50,
+        });
+      }
+    } else {
+      // Future day selected!
+      if (elements.resetLiveBtn) elements.resetLiveBtn.classList.remove('hidden');
+
+      const targetDateStr = dayItem.date;
+      const weekday = getWeekdayName(targetDateStr);
+      const shortDate = formatDateShort(targetDateStr);
+      elements.localTime.textContent = `Forecast for ${weekday}, ${shortDate}`;
+
+      weatherMeta = getBomWeatherMeta(dayItem.icon_descriptor || 'sunny', 1);
+      heroTemp = dayItem.temp_max ?? dayItem.temp_min ?? 20;
+      apparentTemp = heroTemp;
+      highTemp = dayItem.temp_max ?? heroTemp;
+      lowTemp = dayItem.temp_min ?? heroTemp;
+
+      if (elements.precipPillLabel) elements.precipPillLabel.textContent = 'Precipitation';
+      const rainMin = dayItem.rain?.amount?.min || 0;
+      const rainMax = dayItem.rain?.amount?.max || 0;
+      precipText = rainMax > 0 ? `${rainMin}-${rainMax} mm` : `${rainChanceVal}% chance`;
+
+      windSpeedVal = 16;
+      windDirDeg = 180;
+      humidityVal = 55;
+
+      if (elements.hourlyTitle) elements.hourlyTitle.textContent = `${weekday}'s Hourly Forecast`;
+      if (elements.hourlySubtitle) elements.hourlySubtitle.textContent = `24-Hour Timeline (${shortDate})`;
+
+      // Extract matching hours for selected day from BOM hourly
+      const targetLocalDay = new Date(targetDateStr).toLocaleDateString();
+      const matched = hourly.filter(h => new Date(h.time).toLocaleDateString() === targetLocalDay);
+
+      if (matched.length >= 8) {
+        matched.forEach(h => {
+          active24Hours.push({
+            time: h.time,
+            temp: h.temp,
+            code: h.icon_descriptor || 'sunny',
+            pop: h.rain?.chance || 0,
+            uv: typeof h.uv === 'number' ? h.uv : 0,
+            isDay: !h.is_night,
+            humidity: h.relative_humidity || 50,
+          });
+        });
+      } else {
+        // Synthesize smooth diurnal 24-hour curve for days beyond 72h window
+        const baseMin = lowTemp ?? 12;
+        const baseMax = highTemp ?? 22;
+        const peakUv = uvVal || 5;
+        const targetMidnight = new Date(targetDateStr);
+        targetMidnight.setHours(0, 0, 0, 0);
+
+        for (let hour = 0; hour < 24; hour++) {
+          const hourDate = new Date(targetMidnight.getTime() + hour * 3600000);
+          const solarFactor = Math.max(0, Math.sin(((hour - 6) / 12) * Math.PI));
+          const tFactor = (Math.sin(((hour - 8) / 12) * Math.PI) + 1) / 2;
+          const temp = Math.round(baseMin + (baseMax - baseMin) * tFactor);
+          const uv = hour >= 7 && hour <= 17 ? +(peakUv * solarFactor).toFixed(1) : 0;
+          const isDay = hour >= 6 && hour < 18;
+
+          active24Hours.push({
+            time: hourDate.toISOString(),
+            temp,
+            code: dayItem.icon_descriptor || 'sunny',
+            pop: rainChanceVal,
+            uv,
+            isDay,
+            humidity: Math.round(65 - 20 * solarFactor),
+          });
+        }
+      }
+    }
+
+    state.activeDayHours = active24Hours;
+
+    // Atmospheric dynamic background
+    const nowH = new Date().getHours();
+    updateAtmosphere(weatherMeta, isToday ? (nowH >= 6 && nowH < 18 ? 1 : 0) : 1);
+
+    // Hero card content
+    elements.conditionBadge.className = 'weather-badge';
+    elements.conditionText.textContent = dayItem.short_text || weatherMeta.description;
+    elements.currentTemp.textContent = convertTemp(heroTemp);
+    elements.displayUnit.textContent = `°${state.unit.toUpperCase()}`;
+    elements.heroWeatherIcon.innerHTML = createWeatherSvg(weatherMeta.iconType, isToday ? (nowH >= 6 && nowH < 18 ? 1 : 0) : 1);
+    elements.apparentTemp.textContent = `${convertTemp(apparentTemp)}°${state.unit.toUpperCase()}`;
+    elements.tempRange.textContent = `${convertTemp(highTemp)}° / ${convertTemp(lowTemp)}°`;
+    elements.precipitationCurrent.textContent = precipText;
+
+    // Highlights: Wind
+    const wind = convertSpeed(windSpeedVal);
+    elements.windSpeed.textContent = wind.val;
+    elements.windUnit.textContent = wind.unit;
+    elements.windDirText.textContent = `${getWindDirectionCardinal(windDirDeg)} (${windDirDeg}°)`;
+    elements.compassNeedle.style.transform = `rotate(${windDirDeg}deg)`;
+
+    // Highlights: Humidity
+    elements.humidityVal.textContent = humidityVal;
+    elements.humidityProgress.style.width = `${Math.min(humidityVal, 100)}%`;
+    if (humidityVal < 30) elements.humidityState.textContent = 'Dry air';
+    else if (humidityVal <= 60) elements.humidityState.textContent = 'Comfortable moisture';
+    else elements.humidityState.textContent = 'High humidity / sticky';
+
+    // Highlights: UV Index
+    elements.uvVal.textContent = uvVal.toFixed(1);
+    elements.uvIndicator.style.left = `${Math.min((uvVal / 12) * 100, 100)}%`;
+    const uvCat = getUvCategory(uvVal);
+    elements.uvBadge.textContent = uvCat.label;
+    elements.uvAdvice.textContent = uvCat.advice;
+
+    // Highlights: Sun times
+    elements.sunriseTime.textContent = formatTime(sunriseVal);
+    elements.sunsetTime.textContent = formatTime(sunsetVal);
+
+    // Highlights: Rain chance
+    elements.rainChanceVal.textContent = rainChanceVal;
+    elements.rainProgress.style.width = `${rainChanceVal}%`;
+    const rainMaxAmt = dayItem.rain?.amount?.max || 0;
+    if (rainChanceVal === 0) elements.rainAdvice.textContent = 'Zero chance of precipitation';
+    else if (rainChanceVal < 40) elements.rainAdvice.textContent = `Possible shower (up to ${rainMaxAmt} mm)`;
+    else if (rainChanceVal < 70) elements.rainAdvice.textContent = `Rain likely (up to ${rainMaxAmt} mm)`;
+    else elements.rainAdvice.textContent = `High chance of rain (${rainMaxAmt} mm)`;
+
+    // Highlights: Pressure
+    elements.pressureVal.textContent = pressureVal;
+    elements.pressureState.textContent = 'Standard Australian ground station pressure';
+
+    // Render Daily Forecast List
+    renderBomDailyForecast(validDays);
+
+    // Render Hourly Forecast Cards & Canvas Chart
+    renderHourlyForecast(active24Hours, isToday);
+
+    // Draw Mini UV Solar Curve
+    drawMiniUvChart(active24Hours);
+
+    // Update Favorites Active Pill
+    renderFavorites();
+  }
+
+  function renderBomDailyForecast(validDays) {
+    elements.dailyForecastList.innerHTML = '';
+    if (elements.dailyForecastTitle) {
+      elements.dailyForecastTitle.textContent = `BOM ${validDays.length}-Day Forecast`;
+    }
+
+    const minTemps = validDays.map(d => d.temp_min ?? d.temp_max ?? 10);
+    const maxTemps = validDays.map(d => d.temp_max ?? d.temp_min ?? 20);
+    const absoluteMin = Math.min(...minTemps);
+    const absoluteMax = Math.max(...maxTemps);
+    const rangeSpan = Math.max(absoluteMax - absoluteMin, 1);
+
+    validDays.forEach((d, i) => {
+      const dateStr = d.date;
+      const dayLabel = i === 0 ? 'Today' : getWeekdayName(dateStr);
+      const shortDate = formatDateShort(dateStr);
+      const meta = getBomWeatherMeta(d.icon_descriptor || 'sunny', 1);
+      const minTemp = d.temp_min ?? d.temp_max;
+      const maxTemp = d.temp_max ?? d.temp_min;
+      const rainProb = d.rain?.chance || 0;
+      const isSelected = i === state.selectedDayIndex;
+
+      const leftPercent = ((minTemp - absoluteMin) / rangeSpan) * 100;
+      const widthPercent = Math.max(((maxTemp - minTemp) / rangeSpan) * 100, 8);
+
+      const item = document.createElement('div');
+      item.className = `daily-item ${isSelected ? 'active-day' : ''}`;
+      item.setAttribute('data-day-index', i);
+      item.setAttribute('title', `Click to view ${dayLabel} (${shortDate}) BOM forecast details`);
+      item.innerHTML = `
+        <div class="daily-day-col">
+          <span class="daily-day">${dayLabel}</span>
+          <span class="daily-date-sub">${shortDate}</span>
+        </div>
+        <div class="daily-condition">
+          <div class="daily-icon">${createWeatherSvg(meta.iconType, 1)}</div>
+          ${rainProb > 0 ? `<span class="daily-rain-chance">${rainProb}%</span>` : ''}
+        </div>
+        <div class="daily-temp-bar-wrap">
+          <span class="daily-temp-min">${convertTemp(minTemp)}°</span>
+          <div class="daily-bar">
+            <div class="daily-bar-inner" style="left: ${leftPercent}%; width: ${widthPercent}%;"></div>
+          </div>
+          <span class="daily-temp-max">${convertTemp(maxTemp)}°</span>
+        </div>
+      `;
+
+      item.addEventListener('click', () => {
+        selectDay(i);
+      });
+
+      elements.dailyForecastList.appendChild(item);
+    });
+  }
+
+  function renderOpenMeteoDashboard() {
     const { current, hourly, daily, timezone } = state.weatherData;
     const loc = state.currentLocation;
     const isToday = state.selectedDayIndex === 0;
-    const dIdx = state.selectedDayIndex;
+    const dIdx = Math.min(state.selectedDayIndex, daily.time.length - 1);
 
-    // Header City & Country Badge
+    if (elements.sourceBadge) elements.sourceBadge.textContent = 'Global Satellite';
+    if (elements.bomWarningBanner) elements.bomWarningBanner.classList.add('hidden');
+    if (elements.bomStationPill) elements.bomStationPill.classList.add('hidden');
+    if (elements.bomSynopticBox) elements.bomSynopticBox.classList.add('hidden');
+    if (elements.precipPillLabel) elements.precipPillLabel.textContent = 'Precipitation';
+
     elements.cityName.textContent = loc.name;
     elements.countryBadge.textContent = loc.countryCode || loc.country || '--';
 
@@ -451,13 +982,11 @@
     let rainChanceVal = daily.precipitation_probability_max[dIdx] || 0;
     let pressureVal;
 
-    // Extract 24 hours of data for current timeline or selected day
     const active24Hours = [];
 
     if (isToday) {
       if (elements.resetLiveBtn) elements.resetLiveBtn.classList.add('hidden');
 
-      // Local Time format
       try {
         const now = new Date();
         const localString = now.toLocaleTimeString([], {
@@ -486,7 +1015,6 @@
       if (elements.hourlyTitle) elements.hourlyTitle.textContent = 'Hourly Forecast';
       if (elements.hourlySubtitle) elements.hourlySubtitle.textContent = 'Next 24 Hours';
 
-      // Next 24 hours starting from current hour
       const nowIso = new Date().toISOString().slice(0, 13);
       let startIndex = hourly.time.findIndex(t => t.startsWith(nowIso));
       if (startIndex === -1) startIndex = 0;
@@ -502,7 +1030,6 @@
         });
       }
     } else {
-      // Future day from 10-day extended forecast selected!
       if (elements.resetLiveBtn) elements.resetLiveBtn.classList.remove('hidden');
 
       const targetDate = daily.time[dIdx];
@@ -511,7 +1038,7 @@
       elements.localTime.textContent = `Forecast for ${weekday}, ${shortDate}`;
 
       weatherMeta = getWeatherMeta(daily.weather_code[dIdx], 1);
-      heroTemp = daily.temperature_2m_max[dIdx]; // Daytime high
+      heroTemp = daily.temperature_2m_max[dIdx];
       apparentTemp = daily.temperature_2m_max[dIdx];
       precipText = `Max ${rainChanceVal}% chance`;
       windSpeedVal = daily.wind_speed_10m_max ? daily.wind_speed_10m_max[dIdx] : 14;
@@ -520,7 +1047,6 @@
       if (elements.hourlyTitle) elements.hourlyTitle.textContent = `${weekday}'s Hourly Forecast`;
       if (elements.hourlySubtitle) elements.hourlySubtitle.textContent = `24-Hour Timeline (${shortDate})`;
 
-      // Extract all 24 hours for targetDate (00:00 to 23:00)
       for (let i = 0; i < hourly.time.length; i++) {
         if (hourly.time[i].startsWith(targetDate)) {
           active24Hours.push({
@@ -536,7 +1062,6 @@
         }
       }
 
-      // If active24Hours is empty, fallback to slice
       if (active24Hours.length === 0) {
         const start = Math.min(dIdx * 24, hourly.time.length - 24);
         for (let i = start; i < start + 24; i++) {
@@ -551,19 +1076,14 @@
         }
       }
 
-      // Midday sample for humidity & pressure
       const midHour = active24Hours[12] || active24Hours[0];
       humidityVal = midHour.humidity || 50;
       pressureVal = Math.round(midHour.pressure || 1013);
     }
 
-    // Cache active day hours
     state.activeDayHours = active24Hours;
-
-    // Apply Dynamic Atmospheric Theme based on active day weather
     updateAtmosphere(weatherMeta, isToday ? (current.is_day !== undefined ? current.is_day : 1) : 1);
 
-    // Hero Card Content
     elements.conditionBadge.className = 'weather-badge';
     elements.conditionText.textContent = weatherMeta.description;
     elements.currentTemp.textContent = convertTemp(heroTemp);
@@ -573,33 +1093,27 @@
     elements.tempRange.textContent = `${convertTemp(highTemp)}° / ${convertTemp(lowTemp)}°`;
     elements.precipitationCurrent.textContent = precipText;
 
-    // Highlights: Wind
     const wind = convertSpeed(windSpeedVal);
     elements.windSpeed.textContent = wind.val;
     elements.windUnit.textContent = wind.unit;
     elements.windDirText.textContent = `${getWindDirectionCardinal(windDirDeg)} (${windDirDeg}°)`;
     elements.compassNeedle.style.transform = `rotate(${windDirDeg}deg)`;
 
-    // Highlights: Humidity
     elements.humidityVal.textContent = humidityVal;
     elements.humidityProgress.style.width = `${Math.min(humidityVal, 100)}%`;
     if (humidityVal < 30) elements.humidityState.textContent = 'Dry air';
     else if (humidityVal <= 60) elements.humidityState.textContent = 'Comfortable moisture';
     else elements.humidityState.textContent = 'High humidity / sticky';
 
-    // Highlights: UV Index
     elements.uvVal.textContent = uvVal.toFixed(1);
-    const uvPercent = Math.min((uvVal / 12) * 100, 100);
-    elements.uvIndicator.style.left = `${uvPercent}%`;
+    elements.uvIndicator.style.left = `${Math.min((uvVal / 12) * 100, 100)}%`;
     const uvCat = getUvCategory(uvVal);
     elements.uvBadge.textContent = uvCat.label;
     elements.uvAdvice.textContent = uvCat.advice;
 
-    // Highlights: Sun times
     elements.sunriseTime.textContent = formatTime(sunriseVal);
     elements.sunsetTime.textContent = formatTime(sunsetVal);
 
-    // Highlights: Rain Chance
     elements.rainChanceVal.textContent = rainChanceVal;
     elements.rainProgress.style.width = `${rainChanceVal}%`;
     if (rainChanceVal === 0) elements.rainAdvice.textContent = 'Zero chance of precipitation';
@@ -607,30 +1121,24 @@
     else if (rainChanceVal < 70) elements.rainAdvice.textContent = 'Bring an umbrella';
     else elements.rainAdvice.textContent = 'High probability of rain / storm';
 
-    // Highlights: Pressure
     elements.pressureVal.textContent = pressureVal;
     if (pressureVal < 1005) elements.pressureState.textContent = 'Low pressure system (storms)';
     else if (pressureVal > 1020) elements.pressureState.textContent = 'High pressure (fair weather)';
     else elements.pressureState.textContent = 'Normal atmospheric pressure';
 
-    // Render 10-Day Forecast with active day highlight
     renderDailyForecast(daily);
-
-    // Render Hourly Strip & active Chart
     renderHourlyForecast(active24Hours, isToday);
-
-    // Draw Mini UV curve inside UV card
     drawMiniUvChart(active24Hours);
-
-    // Update Favorites active pill styling
     renderFavorites();
   }
 
   function renderDailyForecast(daily) {
     elements.dailyForecastList.innerHTML = '';
     const daysCount = Math.min(daily.time.length, 10);
+    if (elements.dailyForecastTitle) {
+      elements.dailyForecastTitle.textContent = `${daysCount}-Day Forecast`;
+    }
 
-    // Find min and max across the entire 10-day period to scale the visual temperature bars
     let absoluteMin = Math.min(...daily.temperature_2m_min.slice(0, daysCount));
     let absoluteMax = Math.max(...daily.temperature_2m_max.slice(0, daysCount));
     const rangeSpan = Math.max(absoluteMax - absoluteMin, 1);
@@ -646,7 +1154,6 @@
       const rainProb = daily.precipitation_probability_max[i];
       const isSelected = i === state.selectedDayIndex;
 
-      // Calculate bar offsets
       const leftPercent = ((minTemp - absoluteMin) / rangeSpan) * 100;
       const widthPercent = Math.max(((maxTemp - minTemp) / rangeSpan) * 100, 8);
 
@@ -687,7 +1194,7 @@
 
     // Populate Cards
     hours.forEach((h, idx) => {
-      const meta = getWeatherMeta(h.code, h.isDay);
+      const meta = typeof h.code === 'string' ? getBomWeatherMeta(h.code, h.isDay) : getWeatherMeta(h.code, h.isDay);
       const isNow = isToday && idx === 0;
       const timeLabel = isNow ? 'Now' : formatTime(h.time);
 
@@ -1099,10 +1606,10 @@
   // Search Autocomplete
   // =========================================================================
 
-  function renderSearchResults(results) {
+  function renderSearchResults(results, source = 'bom') {
     elements.searchResultsDropdown.innerHTML = '';
     if (!results || results.length === 0) {
-      elements.searchResultsDropdown.innerHTML = `<div class="dropdown-empty">No cities matching "${elements.citySearchInput.value}"</div>`;
+      elements.searchResultsDropdown.innerHTML = `<div class="dropdown-empty">No locations matching "${elements.citySearchInput.value}"</div>`;
       elements.searchResultsDropdown.classList.remove('hidden');
       return;
     }
@@ -1110,28 +1617,55 @@
     results.forEach(item => {
       const div = document.createElement('div');
       div.className = 'dropdown-item';
-      const regionText = [item.admin1, item.country].filter(Boolean).join(', ');
 
-      div.innerHTML = `
-        <div>
-          <div class="dropdown-city">${item.name}</div>
-          <div class="dropdown-region">${regionText}</div>
-        </div>
-        <span class="dropdown-country">${item.country_code || ''}</span>
-      `;
+      if (source === 'bom') {
+        const regionText = [item.postcode, item.state, 'Australia'].filter(Boolean).join(', ');
+        div.innerHTML = `
+          <div>
+            <div class="dropdown-city">${item.name}</div>
+            <div class="dropdown-region">${regionText}</div>
+          </div>
+          <span class="dropdown-country">${item.state || 'BOM'}</span>
+        `;
 
-      div.addEventListener('click', () => {
-        elements.searchResultsDropdown.classList.add('hidden');
-        elements.citySearchInput.value = '';
-        elements.searchWrapper.classList.remove('has-text');
-        fetchForecast(item.latitude, item.longitude, {
-          name: item.name,
-          country: item.country || '',
-          countryCode: item.country_code || '',
-          lat: item.latitude,
-          lon: item.longitude,
+        div.addEventListener('click', () => {
+          elements.searchResultsDropdown.classList.add('hidden');
+          elements.citySearchInput.value = '';
+          elements.searchWrapper.classList.remove('has-text');
+          fetchForecast(item.latitude, item.longitude, {
+            name: item.name,
+            state: item.state || '',
+            postcode: item.postcode || '',
+            country: 'Australia',
+            countryCode: item.state || 'AU',
+            geohash: item.geohash,
+            source: 'bom',
+          });
         });
-      });
+      } else {
+        const regionText = [item.admin1, item.country].filter(Boolean).join(', ');
+        div.innerHTML = `
+          <div>
+            <div class="dropdown-city">${item.name}</div>
+            <div class="dropdown-region">${regionText}</div>
+          </div>
+          <span class="dropdown-country">${item.country_code || 'Global'}</span>
+        `;
+
+        div.addEventListener('click', () => {
+          elements.searchResultsDropdown.classList.add('hidden');
+          elements.citySearchInput.value = '';
+          elements.searchWrapper.classList.remove('has-text');
+          fetchForecast(item.latitude, item.longitude, {
+            name: item.name,
+            country: item.country || '',
+            countryCode: item.country_code || '',
+            lat: item.latitude,
+            lon: item.longitude,
+            source: 'open-meteo',
+          });
+        });
+      }
 
       elements.searchResultsDropdown.appendChild(div);
     });
@@ -1144,7 +1678,7 @@
   // =========================================================================
 
   function loadFavorites() {
-    const saved = localStorage.getItem('skypulse_favorites');
+    const saved = localStorage.getItem('skypulse_favorites_bom_v2');
     if (saved) {
       try {
         state.favorites = JSON.parse(saved);
@@ -1158,7 +1692,7 @@
   }
 
   function saveFavorites() {
-    localStorage.setItem('skypulse_favorites', JSON.stringify(state.favorites));
+    localStorage.setItem('skypulse_favorites_bom_v2', JSON.stringify(state.favorites));
     renderFavorites();
   }
 
