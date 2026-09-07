@@ -858,13 +858,13 @@ body.theme-thunder .weather-glow {
 }
 
 /* ==========================================================================
-   7-Day Daily Forecast
+   10-Day Daily Forecast
    ========================================================================== */
 
 .daily-forecast-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .daily-item {
@@ -872,7 +872,7 @@ body.theme-thunder .weather-glow {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 10px 14px;
+  padding: 8px 12px;
   background: rgba(0, 0, 0, 0.15);
   border-radius: var(--radius-md);
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -897,11 +897,28 @@ body.theme-thunder .weather-glow {
   color: var(--accent-cyan);
 }
 
-.daily-day {
-  width: 65px;
-  font-size: 0.92rem;
-  font-weight: 700;
+.daily-item.active-day .daily-date-sub {
+  color: rgba(56, 189, 248, 0.85);
+}
+
+.daily-day-col {
+  display: flex;
+  flex-direction: column;
+  width: 68px;
   flex-shrink: 0;
+}
+
+.daily-day {
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.daily-date-sub {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  line-height: 1.2;
 }
 
 .daily-condition {

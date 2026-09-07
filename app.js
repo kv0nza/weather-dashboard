@@ -364,7 +364,7 @@
   async function fetchForecast(lat, lon, locationInfo) {
     showStatus('Updating weather forecast...', false);
     try {
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure&hourly=temperature_2m,precipitation_probability,weather_code,uv_index,is_day,relative_humidity_2m,surface_pressure,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max,uv_index_max,wind_speed_10m_max,wind_direction_10m_dominant&timezone=auto`;
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure&hourly=temperature_2m,precipitation_probability,weather_code,uv_index,is_day,relative_humidity_2m,surface_pressure,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max,uv_index_max,wind_speed_10m_max,wind_direction_10m_dominant&forecast_days=10&timezone=auto`;
       const response = await fetch(url);
       if (!response.ok) throw new Error(`Weather service error: ${response.status}`);
       const data = await response.json();
@@ -502,7 +502,7 @@
         });
       }
     } else {
-      // Future day from 7-day extended forecast selected!
+      // Future day from 10-day extended forecast selected!
       if (elements.resetLiveBtn) elements.resetLiveBtn.classList.remove('hidden');
 
       const targetDate = daily.time[dIdx];
@@ -613,7 +613,7 @@
     else if (pressureVal > 1020) elements.pressureState.textContent = 'High pressure (fair weather)';
     else elements.pressureState.textContent = 'Normal atmospheric pressure';
 
-    // Render 7-Day Forecast with active day highlight
+    // Render 10-Day Forecast with active day highlight
     renderDailyForecast(daily);
 
     // Render Hourly Strip & active Chart
@@ -628,9 +628,9 @@
 
   function renderDailyForecast(daily) {
     elements.dailyForecastList.innerHTML = '';
-    const daysCount = Math.min(daily.time.length, 7);
+    const daysCount = Math.min(daily.time.length, 10);
 
-    // Find min and max across the entire week to scale the visual temperature bars
+    // Find min and max across the entire 10-day period to scale the visual temperature bars
     let absoluteMin = Math.min(...daily.temperature_2m_min.slice(0, daysCount));
     let absoluteMax = Math.max(...daily.temperature_2m_max.slice(0, daysCount));
     const rangeSpan = Math.max(absoluteMax - absoluteMin, 1);
@@ -638,6 +638,7 @@
     for (let i = 0; i < daysCount; i++) {
       const dateStr = daily.time[i];
       const dayLabel = i === 0 ? 'Today' : getWeekdayName(dateStr);
+      const shortDate = formatDateShort(dateStr);
       const code = daily.weather_code[i];
       const meta = getWeatherMeta(code, 1);
       const minTemp = daily.temperature_2m_min[i];
@@ -652,9 +653,12 @@
       const item = document.createElement('div');
       item.className = `daily-item ${isSelected ? 'active-day' : ''}`;
       item.setAttribute('data-day-index', i);
-      item.setAttribute('title', `Click to display ${dayLabel}'s weather data`);
+      item.setAttribute('title', `Click to display ${dayLabel} (${shortDate}) weather data`);
       item.innerHTML = `
-        <span class="daily-day">${dayLabel}</span>
+        <div class="daily-day-col">
+          <span class="daily-day">${dayLabel}</span>
+          <span class="daily-date-sub">${shortDate}</span>
+        </div>
         <div class="daily-condition">
           <div class="daily-icon">${createWeatherSvg(meta.iconType, 1)}</div>
           ${rainProb > 15 ? `<span class="daily-rain-chance">${rainProb}%</span>` : ''}

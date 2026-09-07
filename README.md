@@ -28,8 +28,9 @@ A modern, fully-responsive, and visually stunning Weather Dashboard web applicat
 - ⏱️ **24-Hour Hourly Forecast with Dual Views**:
   - **Card View**: Horizontally scrollable strip displaying hourly icons, temperatures, and rain chances.
   - **Trend Graph View**: Custom high-DPI HTML5 Canvas chart displaying smooth temperature curves and precipitation probability bars.
-- 📅 **7-Day Extended Outlook**:
-  - Weekday forecast cards with weather icons, rain probability, and colored temperature range bars showing relative min/max gradients.
+- 📅 **10-Day Extended Outlook**:
+  - 10-day forecast cards with date subtitles, weather icons, rain probability, and colored temperature range bars showing relative min/max gradients.
+  - Interactive selection: click any of the 10 days to sync the entire dashboard to that day's full telemetry.
 - 🔄 **Instant Unit Switcher (°C / °F)**:
   - Toggle between Metric (°C, km/h) and Imperial (°F, mph) on the fly without waiting for network reloads. Saved automatically in `localStorage`.
 - ⭐ **Pinned / Favorites Bar**:
