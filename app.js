@@ -294,6 +294,21 @@
     return date.toLocaleDateString([], { weekday: 'short' });
   }
 
+  function formatDateShort(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString + 'T00:00:00');
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  }
+
+  function getUvCategory(uv) {
+    const val = typeof uv === 'number' ? uv : 0;
+    if (val <= 2) return { label: 'Low', color: '#10b981', advice: 'No protection needed', dotClass: 'uv-low' };
+    if (val <= 5) return { label: 'Moderate', color: '#facc15', advice: 'Sunscreen recommended', dotClass: 'uv-mod' };
+    if (val <= 7) return { label: 'High', color: '#f97316', advice: 'Hat & SPF 30+ advised', dotClass: 'uv-high' };
+    if (val <= 10) return { label: 'Very High', color: '#ef4444', advice: 'Seek shade midday', dotClass: 'uv-veryhigh' };
+    return { label: 'Extreme', color: '#a855f7', advice: 'Avoid outdoor exposure', dotClass: 'uv-extreme' };
+  }
+
   // =========================================================================
   // Ambient Weather Animations
   // =========================================================================
@@ -349,13 +364,14 @@
   async function fetchForecast(lat, lon, locationInfo) {
     showStatus('Updating weather forecast...', false);
     try {
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure&hourly=temperature_2m,precipitation_probability,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max,uv_index_max&timezone=auto`;
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure&hourly=temperature_2m,precipitation_probability,weather_code,uv_index,is_day,relative_humidity_2m,surface_pressure,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max,uv_index_max,wind_speed_10m_max,wind_direction_10m_dominant&timezone=auto`;
       const response = await fetch(url);
       if (!response.ok) throw new Error(`Weather service error: ${response.status}`);
       const data = await response.json();
 
       state.weatherData = data;
       state.currentLocation = locationInfo;
+      state.selectedDayIndex = 0; // Reset to live/today for newly loaded location
 
       renderDashboard();
       hideStatus();
@@ -403,116 +419,208 @@
   // Rendering Views
   // =========================================================================
 
+  function selectDay(dayIndex) {
+    state.selectedDayIndex = dayIndex;
+    renderDashboard();
+  }
+
   function renderDashboard() {
     if (!state.weatherData || !state.currentLocation) return;
 
     const { current, hourly, daily, timezone } = state.weatherData;
     const loc = state.currentLocation;
-    const isDay = current.is_day !== undefined ? current.is_day : 1;
-    const weatherMeta = getWeatherMeta(current.weather_code, isDay);
+    const isToday = state.selectedDayIndex === 0;
+    const dIdx = state.selectedDayIndex;
 
-    // Apply Dynamic Atmospheric Theme
-    updateAtmosphere(weatherMeta, isDay);
-
-    // Header & Location Info
+    // Header City & Country Badge
     elements.cityName.textContent = loc.name;
     elements.countryBadge.textContent = loc.countryCode || loc.country || '--';
-    
-    // Local Time format
-    try {
-      const now = new Date();
-      const localString = now.toLocaleTimeString([], {
-        timeZone: timezone,
-        hour: '2-digit',
-        minute: '2-digit',
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      });
-      elements.localTime.textContent = `Local time: ${localString}`;
-    } catch (e) {
-      elements.localTime.textContent = `Timezone: ${timezone}`;
+
+    let weatherMeta;
+    let heroTemp;
+    let apparentTemp;
+    let highTemp = daily.temperature_2m_max[dIdx];
+    let lowTemp = daily.temperature_2m_min[dIdx];
+    let precipText;
+    let windSpeedVal;
+    let windDirDeg;
+    let humidityVal;
+    let uvVal = daily.uv_index_max[dIdx] || 0;
+    let sunriseVal = daily.sunrise[dIdx];
+    let sunsetVal = daily.sunset[dIdx];
+    let rainChanceVal = daily.precipitation_probability_max[dIdx] || 0;
+    let pressureVal;
+
+    // Extract 24 hours of data for current timeline or selected day
+    const active24Hours = [];
+
+    if (isToday) {
+      if (elements.resetLiveBtn) elements.resetLiveBtn.classList.add('hidden');
+
+      // Local Time format
+      try {
+        const now = new Date();
+        const localString = now.toLocaleTimeString([], {
+          timeZone: timezone,
+          hour: '2-digit',
+          minute: '2-digit',
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+        });
+        elements.localTime.textContent = `Local time: ${localString}`;
+      } catch (e) {
+        elements.localTime.textContent = `Timezone: ${timezone}`;
+      }
+
+      const isDay = current.is_day !== undefined ? current.is_day : 1;
+      weatherMeta = getWeatherMeta(current.weather_code, isDay);
+      heroTemp = current.temperature_2m;
+      apparentTemp = current.apparent_temperature;
+      precipText = `${current.precipitation || 0} mm`;
+      windSpeedVal = current.wind_speed_10m;
+      windDirDeg = current.wind_direction_10m;
+      humidityVal = current.relative_humidity_2m;
+      pressureVal = Math.round(current.surface_pressure || 1013);
+
+      if (elements.hourlyTitle) elements.hourlyTitle.textContent = 'Hourly Forecast';
+      if (elements.hourlySubtitle) elements.hourlySubtitle.textContent = 'Next 24 Hours';
+
+      // Next 24 hours starting from current hour
+      const nowIso = new Date().toISOString().slice(0, 13);
+      let startIndex = hourly.time.findIndex(t => t.startsWith(nowIso));
+      if (startIndex === -1) startIndex = 0;
+
+      for (let i = startIndex; i < Math.min(startIndex + 24, hourly.time.length); i++) {
+        active24Hours.push({
+          time: hourly.time[i],
+          temp: hourly.temperature_2m[i],
+          code: hourly.weather_code[i],
+          pop: hourly.precipitation_probability ? hourly.precipitation_probability[i] : 0,
+          uv: hourly.uv_index ? hourly.uv_index[i] : 0,
+          isDay: hourly.is_day ? hourly.is_day[i] : 1,
+        });
+      }
+    } else {
+      // Future day from 7-day extended forecast selected!
+      if (elements.resetLiveBtn) elements.resetLiveBtn.classList.remove('hidden');
+
+      const targetDate = daily.time[dIdx];
+      const weekday = getWeekdayName(targetDate);
+      const shortDate = formatDateShort(targetDate);
+      elements.localTime.textContent = `Forecast for ${weekday}, ${shortDate}`;
+
+      weatherMeta = getWeatherMeta(daily.weather_code[dIdx], 1);
+      heroTemp = daily.temperature_2m_max[dIdx]; // Daytime high
+      apparentTemp = daily.temperature_2m_max[dIdx];
+      precipText = `Max ${rainChanceVal}% chance`;
+      windSpeedVal = daily.wind_speed_10m_max ? daily.wind_speed_10m_max[dIdx] : 14;
+      windDirDeg = daily.wind_direction_10m_dominant ? daily.wind_direction_10m_dominant[dIdx] : 180;
+
+      if (elements.hourlyTitle) elements.hourlyTitle.textContent = `${weekday}'s Hourly Forecast`;
+      if (elements.hourlySubtitle) elements.hourlySubtitle.textContent = `24-Hour Timeline (${shortDate})`;
+
+      // Extract all 24 hours for targetDate (00:00 to 23:00)
+      for (let i = 0; i < hourly.time.length; i++) {
+        if (hourly.time[i].startsWith(targetDate)) {
+          active24Hours.push({
+            time: hourly.time[i],
+            temp: hourly.temperature_2m[i],
+            code: hourly.weather_code[i],
+            pop: hourly.precipitation_probability ? hourly.precipitation_probability[i] : 0,
+            uv: hourly.uv_index ? hourly.uv_index[i] : 0,
+            isDay: hourly.is_day ? hourly.is_day[i] : 1,
+            humidity: hourly.relative_humidity_2m ? hourly.relative_humidity_2m[i] : 50,
+            pressure: hourly.surface_pressure ? hourly.surface_pressure[i] : 1013,
+          });
+        }
+      }
+
+      // If active24Hours is empty, fallback to slice
+      if (active24Hours.length === 0) {
+        const start = Math.min(dIdx * 24, hourly.time.length - 24);
+        for (let i = start; i < start + 24; i++) {
+          active24Hours.push({
+            time: hourly.time[i],
+            temp: hourly.temperature_2m[i],
+            code: hourly.weather_code[i],
+            pop: hourly.precipitation_probability ? hourly.precipitation_probability[i] : 0,
+            uv: hourly.uv_index ? hourly.uv_index[i] : 0,
+            isDay: hourly.is_day ? hourly.is_day[i] : 1,
+          });
+        }
+      }
+
+      // Midday sample for humidity & pressure
+      const midHour = active24Hours[12] || active24Hours[0];
+      humidityVal = midHour.humidity || 50;
+      pressureVal = Math.round(midHour.pressure || 1013);
     }
 
-    // Hero Card
-    elements.conditionBadge.className = `weather-badge`;
+    // Cache active day hours
+    state.activeDayHours = active24Hours;
+
+    // Apply Dynamic Atmospheric Theme based on active day weather
+    updateAtmosphere(weatherMeta, isToday ? (current.is_day !== undefined ? current.is_day : 1) : 1);
+
+    // Hero Card Content
+    elements.conditionBadge.className = 'weather-badge';
     elements.conditionText.textContent = weatherMeta.description;
-    elements.currentTemp.textContent = convertTemp(current.temperature_2m);
+    elements.currentTemp.textContent = convertTemp(heroTemp);
     elements.displayUnit.textContent = `°${state.unit.toUpperCase()}`;
-    elements.heroWeatherIcon.innerHTML = createWeatherSvg(weatherMeta.iconType, isDay);
-
-    elements.apparentTemp.textContent = `${convertTemp(current.apparent_temperature)}°${state.unit.toUpperCase()}`;
-    
-    // High / Low for Today
-    const todayHigh = daily.temperature_2m_max[0];
-    const todayLow = daily.temperature_2m_min[0];
-    elements.tempRange.textContent = `${convertTemp(todayHigh)}° / ${convertTemp(todayLow)}°`;
-
-    // Precipitation current
-    elements.precipitationCurrent.textContent = `${current.precipitation || 0} mm`;
+    elements.heroWeatherIcon.innerHTML = createWeatherSvg(weatherMeta.iconType, isToday ? (current.is_day !== undefined ? current.is_day : 1) : 1);
+    elements.apparentTemp.textContent = `${convertTemp(apparentTemp)}°${state.unit.toUpperCase()}`;
+    elements.tempRange.textContent = `${convertTemp(highTemp)}° / ${convertTemp(lowTemp)}°`;
+    elements.precipitationCurrent.textContent = precipText;
 
     // Highlights: Wind
-    const wind = convertSpeed(current.wind_speed_10m);
+    const wind = convertSpeed(windSpeedVal);
     elements.windSpeed.textContent = wind.val;
     elements.windUnit.textContent = wind.unit;
-    elements.windDirText.textContent = `${getWindDirectionCardinal(current.wind_direction_10m)} (${current.wind_direction_10m}°)`;
-    elements.compassNeedle.style.transform = `rotate(${current.wind_direction_10m}deg)`;
+    elements.windDirText.textContent = `${getWindDirectionCardinal(windDirDeg)} (${windDirDeg}°)`;
+    elements.compassNeedle.style.transform = `rotate(${windDirDeg}deg)`;
 
     // Highlights: Humidity
-    const hum = current.relative_humidity_2m;
-    elements.humidityVal.textContent = hum;
-    elements.humidityProgress.style.width = `${Math.min(hum, 100)}%`;
-    if (hum < 30) elements.humidityState.textContent = 'Dry air';
-    else if (hum <= 60) elements.humidityState.textContent = 'Comfortable moisture';
+    elements.humidityVal.textContent = humidityVal;
+    elements.humidityProgress.style.width = `${Math.min(humidityVal, 100)}%`;
+    if (humidityVal < 30) elements.humidityState.textContent = 'Dry air';
+    else if (humidityVal <= 60) elements.humidityState.textContent = 'Comfortable moisture';
     else elements.humidityState.textContent = 'High humidity / sticky';
 
     // Highlights: UV Index
-    const uvMax = daily.uv_index_max[0] || 0;
-    elements.uvVal.textContent = uvMax.toFixed(1);
-    const uvPercent = Math.min((uvMax / 12) * 100, 100);
+    elements.uvVal.textContent = uvVal.toFixed(1);
+    const uvPercent = Math.min((uvVal / 12) * 100, 100);
     elements.uvIndicator.style.left = `${uvPercent}%`;
-    if (uvMax <= 2) {
-      elements.uvBadge.textContent = 'Low';
-      elements.uvAdvice.textContent = 'No protection needed';
-    } else if (uvMax <= 5) {
-      elements.uvBadge.textContent = 'Moderate';
-      elements.uvAdvice.textContent = 'Sunscreen recommended';
-    } else if (uvMax <= 7) {
-      elements.uvBadge.textContent = 'High';
-      elements.uvAdvice.textContent = 'Hat & SPF 30+ advised';
-    } else if (uvMax <= 10) {
-      elements.uvBadge.textContent = 'Very High';
-      elements.uvAdvice.textContent = 'Seek shade midday';
-    } else {
-      elements.uvBadge.textContent = 'Extreme';
-      elements.uvAdvice.textContent = 'Avoid outdoor exposure';
-    }
+    const uvCat = getUvCategory(uvVal);
+    elements.uvBadge.textContent = uvCat.label;
+    elements.uvAdvice.textContent = uvCat.advice;
 
     // Highlights: Sun times
-    elements.sunriseTime.textContent = formatTime(daily.sunrise[0]);
-    elements.sunsetTime.textContent = formatTime(daily.sunset[0]);
+    elements.sunriseTime.textContent = formatTime(sunriseVal);
+    elements.sunsetTime.textContent = formatTime(sunsetVal);
 
     // Highlights: Rain Chance
-    const rainMax = daily.precipitation_probability_max[0] || 0;
-    elements.rainChanceVal.textContent = rainMax;
-    elements.rainProgress.style.width = `${rainMax}%`;
-    if (rainMax === 0) elements.rainAdvice.textContent = 'Zero chance of precipitation';
-    else if (rainMax < 40) elements.rainAdvice.textContent = 'Unlikely, but possible drizzle';
-    else if (rainMax < 70) elements.rainAdvice.textContent = 'Bring an umbrella';
+    elements.rainChanceVal.textContent = rainChanceVal;
+    elements.rainProgress.style.width = `${rainChanceVal}%`;
+    if (rainChanceVal === 0) elements.rainAdvice.textContent = 'Zero chance of precipitation';
+    else if (rainChanceVal < 40) elements.rainAdvice.textContent = 'Unlikely, but possible drizzle';
+    else if (rainChanceVal < 70) elements.rainAdvice.textContent = 'Bring an umbrella';
     else elements.rainAdvice.textContent = 'High probability of rain / storm';
 
     // Highlights: Pressure
-    const press = Math.round(current.surface_pressure || 1013);
-    elements.pressureVal.textContent = press;
-    if (press < 1005) elements.pressureState.textContent = 'Low pressure system (storms)';
-    else if (press > 1020) elements.pressureState.textContent = 'High pressure (fair weather)';
+    elements.pressureVal.textContent = pressureVal;
+    if (pressureVal < 1005) elements.pressureState.textContent = 'Low pressure system (storms)';
+    else if (pressureVal > 1020) elements.pressureState.textContent = 'High pressure (fair weather)';
     else elements.pressureState.textContent = 'Normal atmospheric pressure';
 
-    // Render 7-Day Forecast
+    // Render 7-Day Forecast with active day highlight
     renderDailyForecast(daily);
 
-    // Render Hourly Strip & Chart
-    renderHourlyForecast(hourly);
+    // Render Hourly Strip & active Chart
+    renderHourlyForecast(active24Hours, isToday);
+
+    // Draw Mini UV curve inside UV card
+    drawMiniUvChart(active24Hours);
 
     // Update Favorites active pill styling
     renderFavorites();
@@ -535,13 +643,16 @@
       const minTemp = daily.temperature_2m_min[i];
       const maxTemp = daily.temperature_2m_max[i];
       const rainProb = daily.precipitation_probability_max[i];
+      const isSelected = i === state.selectedDayIndex;
 
       // Calculate bar offsets
       const leftPercent = ((minTemp - absoluteMin) / rangeSpan) * 100;
       const widthPercent = Math.max(((maxTemp - minTemp) / rangeSpan) * 100, 8);
 
       const item = document.createElement('div');
-      item.className = 'daily-item';
+      item.className = `daily-item ${isSelected ? 'active-day' : ''}`;
+      item.setAttribute('data-day-index', i);
+      item.setAttribute('title', `Click to display ${dayLabel}'s weather data`);
       item.innerHTML = `
         <span class="daily-day">${dayLabel}</span>
         <div class="daily-condition">
@@ -556,34 +667,24 @@
           <span class="daily-temp-max">${convertTemp(maxTemp)}°</span>
         </div>
       `;
+
+      item.addEventListener('click', () => {
+        selectDay(i);
+      });
+
       elements.dailyForecastList.appendChild(item);
     }
   }
 
-  function renderHourlyForecast(hourly) {
+  function renderHourlyForecast(hourlyData, isToday) {
     elements.hourlyStrip.innerHTML = '';
-    if (!hourly || !hourly.time) return;
-
-    // Find current hour index based on current time
-    const nowIso = new Date().toISOString().slice(0, 13);
-    let startIndex = hourly.time.findIndex(t => t.startsWith(nowIso));
-    if (startIndex === -1) startIndex = 0;
-
-    const next24 = [];
-    for (let i = startIndex; i < Math.min(startIndex + 24, hourly.time.length); i++) {
-      next24.push({
-        time: hourly.time[i],
-        temp: hourly.temperature_2m[i],
-        code: hourly.weather_code[i],
-        pop: hourly.precipitation_probability ? hourly.precipitation_probability[i] : 0,
-        isDay: hourly.is_day ? hourly.is_day[i] : 1,
-      });
-    }
+    const hours = hourlyData || state.activeDayHours;
+    if (!hours || hours.length === 0) return;
 
     // Populate Cards
-    next24.forEach((h, idx) => {
+    hours.forEach((h, idx) => {
       const meta = getWeatherMeta(h.code, h.isDay);
-      const isNow = idx === 0;
+      const isNow = isToday && idx === 0;
       const timeLabel = isNow ? 'Now' : formatTime(h.time);
 
       const el = document.createElement('div');
@@ -593,23 +694,24 @@
         <div class="hourly-icon">${createWeatherSvg(meta.iconType, h.isDay)}</div>
         <span class="hourly-temp">${convertTemp(h.temp)}°</span>
         <span class="hourly-pop">${h.pop > 0 ? `💧${h.pop}%` : ''}</span>
+        ${h.uv > 0 ? `<span class="hourly-uv-tag" style="font-size:0.68rem; color:#facc15; font-weight:700;">☀️ ${h.uv.toFixed(0)}</span>` : ''}
       `;
       elements.hourlyStrip.appendChild(el);
     });
 
-    // Cache for quick redrawing on window resize
-    state.next24Hours = next24;
-
-    // Render Canvas Interactive Chart
-    drawHourlyChart(next24);
+    // Render Canvas Interactive Chart based on active tab
+    if (state.activeTab === 'chart') {
+      drawHourlyChart(hours);
+    } else if (state.activeTab === 'uv') {
+      drawHourlyUvChart(hours);
+    }
   }
 
   function drawHourlyChart(hourlyData) {
-    const data = hourlyData || state.next24Hours;
+    const data = hourlyData || state.activeDayHours;
     const canvas = elements.hourlyCanvas;
     if (!canvas || !data || data.length < 2) return;
 
-    // Calculate actual available pixel width from element or parent container
     const containerWidth = elements.hourlyChartContainer ? elements.hourlyChartContainer.clientWidth : 0;
     const rectWidth = canvas.getBoundingClientRect().width;
     const width = Math.floor(containerWidth > 40 ? containerWidth : (rectWidth > 40 ? rectWidth : 600));
@@ -625,8 +727,6 @@
     ctx.scale(dpr, dpr);
 
     ctx.clearRect(0, 0, width, height);
-
-    if (data.length < 2) return;
 
     const paddingX = 35;
     const paddingTop = 25;
@@ -721,6 +821,274 @@
         ctx.fillText(timeLabel, pt.x, height - 10);
       }
     });
+
+    // Update legend
+    if (elements.chartLegend) {
+      elements.chartLegend.innerHTML = `
+        <span class="legend-item"><span class="legend-dot temp-dot"></span> Temperature</span>
+        <span class="legend-item"><span class="legend-dot rain-dot"></span> Rain Chance %</span>
+      `;
+    }
+  }
+
+  function drawHourlyUvChart(hourlyData) {
+    const data = hourlyData || state.activeDayHours;
+    const canvas = elements.hourlyCanvas;
+    if (!canvas || !data || data.length < 2) return;
+
+    const containerWidth = elements.hourlyChartContainer ? elements.hourlyChartContainer.clientWidth : 0;
+    const rectWidth = canvas.getBoundingClientRect().width;
+    const width = Math.floor(containerWidth > 40 ? containerWidth : (rectWidth > 40 ? rectWidth : 600));
+    const height = 180;
+
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.width = Math.floor(width * dpr);
+    canvas.height = Math.floor(height * dpr);
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+    ctx.scale(dpr, dpr);
+
+    ctx.clearRect(0, 0, width, height);
+
+    const paddingX = 40;
+    const paddingTop = 32;
+    const paddingBottom = 35;
+    const chartWidth = width - paddingX * 2;
+    const chartHeight = height - paddingTop - paddingBottom;
+
+    // UV values
+    const uvValues = data.map(d => (typeof d.uv === 'number' ? d.uv : 0));
+    const maxUv = Math.max(...uvValues, 0);
+    const yMax = Math.max(12, Math.ceil(maxUv + 1));
+
+    // 1. Draw horizontal hazard risk bands
+    const bands = [
+      { max: 2, color: 'rgba(16, 185, 129, 0.08)' }, // Low (0-2)
+      { max: 5, color: 'rgba(250, 204, 21, 0.08)' }, // Moderate (3-5)
+      { max: 7, color: 'rgba(249, 115, 22, 0.08)' }, // High (6-7)
+      { max: 10, color: 'rgba(239, 68, 68, 0.08)' }, // Very High (8-10)
+      { max: 13, color: 'rgba(168, 85, 247, 0.08)' }, // Extreme (11+)
+    ];
+
+    let prevY = height - paddingBottom;
+    bands.forEach(b => {
+      const bandTopY = height - paddingBottom - (Math.min(b.max, yMax) / yMax) * chartHeight;
+      ctx.fillStyle = b.color;
+      ctx.fillRect(paddingX, bandTopY, chartWidth, prevY - bandTopY);
+      prevY = bandTopY;
+    });
+
+    const stepX = chartWidth / (data.length - 1);
+
+    const points = data.map((d, i) => {
+      const uv = typeof d.uv === 'number' ? d.uv : 0;
+      const x = paddingX + i * stepX;
+      const y = height - paddingBottom - (uv / yMax) * chartHeight;
+      return { x, y, uv, time: d.time };
+    });
+
+    // 2. Gradient Fill under UV curve
+    const gradient = ctx.createLinearGradient(0, paddingTop, 0, height - paddingBottom);
+    gradient.addColorStop(0, 'rgba(245, 158, 11, 0.45)');
+    gradient.addColorStop(0.5, 'rgba(251, 191, 36, 0.2)');
+    gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 0; i < points.length - 1; i++) {
+      const xc = (points[i].x + points[i + 1].x) / 2;
+      const yc = (points[i].y + points[i + 1].y) / 2;
+      ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+    }
+    ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
+    ctx.lineTo(points[points.length - 1].x, height - paddingBottom);
+    ctx.lineTo(points[0].x, height - paddingBottom);
+    ctx.closePath();
+    ctx.fillStyle = gradient;
+    ctx.fill();
+
+    // 3. Draw UV line
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 0; i < points.length - 1; i++) {
+      const xc = (points[i].x + points[i + 1].x) / 2;
+      const yc = (points[i].y + points[i + 1].y) / 2;
+      ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+    }
+    ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // 4. Find Peak UV Point
+    let peakIndex = 0;
+    let peakVal = 0;
+    points.forEach((pt, i) => {
+      if (pt.uv > peakVal) {
+        peakVal = pt.uv;
+        peakIndex = i;
+      }
+    });
+
+    // 5. Draw Labels & Markers (every 3 hours)
+    ctx.font = '600 11px Plus Jakarta Sans, sans-serif';
+    ctx.textAlign = 'center';
+
+    points.forEach((pt, i) => {
+      if (i % 3 === 0 || i === points.length - 1) {
+        // Dot
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = pt.uv > 0 ? '#fbbf24' : 'rgba(255,255,255,0.4)';
+        ctx.fill();
+
+        // Time label
+        const timeLabel = formatTime(pt.time);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+        ctx.fillText(timeLabel, pt.x, height - 10);
+      }
+    });
+
+    // Highlight Peak UV
+    if (peakVal > 0) {
+      const peakPt = points[peakIndex];
+      const cat = getUvCategory(peakVal);
+
+      // Glowing outer ring
+      ctx.beginPath();
+      ctx.arc(peakPt.x, peakPt.y, 6.5, 0, Math.PI * 2);
+      ctx.fillStyle = cat.color;
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Callout text
+      const timeStr = formatTime(peakPt.time);
+      const calloutText = `Peak: ${peakVal.toFixed(1)} (${cat.label}) at ${timeStr}`;
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '700 11px Plus Jakarta Sans, sans-serif';
+      ctx.fillText(calloutText, Math.min(Math.max(peakPt.x, 90), width - 90), peakPt.y - 12);
+    }
+
+    // Legend
+    if (elements.chartLegend) {
+      elements.chartLegend.innerHTML = `
+        <span class="legend-item"><span class="legend-dot uv-low"></span> Low (0-2)</span>
+        <span class="legend-item"><span class="legend-dot uv-mod"></span> Mod (3-5)</span>
+        <span class="legend-item"><span class="legend-dot uv-high"></span> High (6-7)</span>
+        <span class="legend-item"><span class="legend-dot uv-veryhigh"></span> Very High (8-10)</span>
+        <span class="legend-item"><span class="legend-dot uv-extreme"></span> Extreme (11+)</span>
+      `;
+    }
+  }
+
+  function drawMiniUvChart(hourlyData) {
+    const canvas = elements.uvMiniCanvas;
+    if (!canvas) return;
+
+    const data = hourlyData || state.activeDayHours;
+    if (!data || data.length < 2) return;
+
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    const width = Math.floor(rect.width || 180);
+    const height = 42;
+
+    canvas.width = Math.floor(width * dpr);
+    canvas.height = Math.floor(height * dpr);
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+    ctx.scale(dpr, dpr);
+
+    ctx.clearRect(0, 0, width, height);
+
+    // Filter daylight hours: 05:00 to 20:00
+    const daylight = data.filter(d => {
+      const hour = new Date(d.time).getHours();
+      return hour >= 5 && hour <= 20;
+    });
+
+    const ptsData = daylight.length >= 4 ? daylight : data;
+    const uvValues = ptsData.map(d => (typeof d.uv === 'number' ? d.uv : 0));
+    const maxUv = Math.max(...uvValues, 0);
+    const yMax = Math.max(12, Math.ceil(maxUv + 1));
+
+    const paddingX = 8;
+    const paddingY = 6;
+    const chartW = width - paddingX * 2;
+    const chartH = height - paddingY * 2;
+    const stepX = chartW / (ptsData.length - 1);
+
+    const points = ptsData.map((d, i) => {
+      const uv = typeof d.uv === 'number' ? d.uv : 0;
+      const x = paddingX + i * stepX;
+      const y = height - paddingY - (uv / yMax) * chartH;
+      return { x, y, uv, time: d.time };
+    });
+
+    // Gradient fill
+    const grad = ctx.createLinearGradient(0, paddingY, 0, height - paddingY);
+    grad.addColorStop(0, 'rgba(250, 204, 21, 0.45)');
+    grad.addColorStop(1, 'rgba(16, 185, 129, 0.05)');
+
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 0; i < points.length - 1; i++) {
+      const xc = (points[i].x + points[i + 1].x) / 2;
+      const yc = (points[i].y + points[i + 1].y) / 2;
+      ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+    }
+    ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
+    ctx.lineTo(points[points.length - 1].x, height - paddingY);
+    ctx.lineTo(points[0].x, height - paddingY);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Stroke line
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 0; i < points.length - 1; i++) {
+      const xc = (points[i].x + points[i + 1].x) / 2;
+      const yc = (points[i].y + points[i + 1].y) / 2;
+      ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+    }
+    ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
+    ctx.strokeStyle = '#fbbf24';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Mark current or peak hour
+    let targetIndex = 0;
+    if (state.selectedDayIndex === 0) {
+      const currentHour = new Date().getHours();
+      const idx = ptsData.findIndex(d => new Date(d.time).getHours() === currentHour);
+      targetIndex = idx !== -1 ? idx : Math.floor(ptsData.length / 2);
+    } else {
+      let peakU = -1;
+      points.forEach((p, i) => {
+        if (p.uv > peakU) {
+          peakU = p.uv;
+          targetIndex = i;
+        }
+      });
+    }
+
+    if (points[targetIndex]) {
+      const pt = points[targetIndex];
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
   }
 
   // =========================================================================
@@ -922,10 +1290,11 @@
       );
     });
 
-    // Hourly tabs (Cards vs Chart View)
+    // Hourly tabs (Cards vs Chart vs UV Solar View)
     elements.tabCardsView.addEventListener('click', () => {
       elements.tabCardsView.classList.add('active');
       elements.tabChartView.classList.remove('active');
+      if (elements.tabUvView) elements.tabUvView.classList.remove('active');
       elements.hourlyCardsView.classList.remove('hidden');
       elements.hourlyChartContainer.classList.add('hidden');
       state.activeTab = 'cards';
@@ -934,21 +1303,45 @@
     elements.tabChartView.addEventListener('click', () => {
       elements.tabChartView.classList.add('active');
       elements.tabCardsView.classList.remove('active');
+      if (elements.tabUvView) elements.tabUvView.classList.remove('active');
       elements.hourlyCardsView.classList.add('hidden');
       elements.hourlyChartContainer.classList.remove('hidden');
       state.activeTab = 'chart';
-      // Redraw canvas with current container dimensions immediately
       requestAnimationFrame(() => {
         drawHourlyChart();
       });
     });
+
+    if (elements.tabUvView) {
+      elements.tabUvView.addEventListener('click', () => {
+        elements.tabUvView.classList.add('active');
+        elements.tabCardsView.classList.remove('active');
+        elements.tabChartView.classList.remove('active');
+        elements.hourlyCardsView.classList.add('hidden');
+        elements.hourlyChartContainer.classList.remove('hidden');
+        state.activeTab = 'uv';
+        requestAnimationFrame(() => {
+          drawHourlyUvChart();
+        });
+      });
+    }
+
+    // Reset Live View button in Hero card
+    if (elements.resetLiveBtn) {
+      elements.resetLiveBtn.addEventListener('click', () => {
+        selectDay(0);
+      });
+    }
 
     // Dynamic browser window resize handler with debounce & ResizeObserver
     let resizeTimer = null;
     function handleResize() {
       if (state.activeTab === 'chart') {
         drawHourlyChart();
+      } else if (state.activeTab === 'uv') {
+        drawHourlyUvChart();
       }
+      drawMiniUvChart();
     }
 
     if (window.ResizeObserver && elements.hourlyChartContainer) {
