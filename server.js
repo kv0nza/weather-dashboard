@@ -64,10 +64,26 @@ server.listen(PORT, () => {
   console.log(' Press Ctrl+C in this terminal to stop the server.');
   console.log('========================================================');
 
-  // Automatically open browser on Windows
-  exec(`start "" "${url}"`, (err) => {
-    if (err) {
-      console.log(`Open ${url} manually in your web browser.`);
-    }
-  });
+  // Automatically open browser on Windows (skip in Docker / headless)
+  if (process.platform === 'win32' && !process.env.DOCKER) {
+    exec(`start "" "${url}"`, (err) => {
+      if (err) {
+        console.log(`Open ${url} manually in your web browser.`);
+      }
+    });
+  } else {
+    console.log(`Open ${url} in your web browser.`);
+  }
 });
+
+// Graceful shutdown for Docker SIGINT / SIGTERM signals
+const shutdown = (signal) => {
+  console.log(`\nReceived ${signal}, shutting down SkyPulse server...`);
+  server.close(() => {
+    console.log('Server stopped cleanly.');
+    process.exit(0);
+  });
+};
+
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));

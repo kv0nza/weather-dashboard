@@ -1,0 +1,22 @@
+# ==============================================================================
+# SkyPulse Weather Dashboard - High-Performance Nginx Dockerfile
+# Ultra-lightweight (~23MB) production static web server
+# ==============================================================================
+
+FROM nginx:alpine
+
+# Remove default nginx welcome page
+RUN rm -rf /usr/share/nginx/html/*
+
+# Copy static frontend assets into nginx web root
+COPY index.html styles.css app.js /usr/share/nginx/html/
+
+# Expose default HTTP port
+EXPOSE 80
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
+
+# Start Nginx in foreground
+CMD ["nginx", "-g", "daemon off;"]

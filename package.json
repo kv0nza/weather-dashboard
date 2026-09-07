@@ -4,6 +4,11 @@
   "description": "Modern, fully-responsive weather dashboard powered in real-time by Open-Meteo",
   "scripts": {
     "start": "node server.js",
+    "docker:build": "docker build -t skypulse-weather .",
+    "docker:run": "docker run -d -p 3000:3000 --name skypulse-weather-dashboard skypulse-weather",
+    "docker:stop": "docker stop skypulse-weather-dashboard && docker rm skypulse-weather-dashboard",
+    "docker:compose": "docker compose up -d",
+    "docker:compose:down": "docker compose down",
     "push": "git add . && git commit -m \"Update weather dashboard\" && git push"
   },
   "keywords": [
