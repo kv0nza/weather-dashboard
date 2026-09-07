@@ -398,11 +398,24 @@
   function formatTime(isoString) {
     if (!isoString) return '--:--';
     const date = new Date(isoString);
+    if (isNaN(date.getTime())) return '--:--';
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
   }
 
+  function parseDate(dateString) {
+    if (!dateString) return new Date();
+    if (dateString instanceof Date) return isNaN(dateString.getTime()) ? new Date() : dateString;
+    const str = String(dateString).trim();
+    const parsed = str.includes('T') ? new Date(str) : new Date(str + 'T00:00:00');
+    if (isNaN(parsed.getTime())) {
+      const fallback = new Date(str);
+      return isNaN(fallback.getTime()) ? new Date() : fallback;
+    }
+    return parsed;
+  }
+
   function getWeekdayName(dateString) {
-    const date = new Date(dateString + 'T00:00:00');
+    const date = parseDate(dateString);
     const today = new Date();
     if (date.toDateString() === today.toDateString()) {
       return 'Today';
@@ -412,7 +425,7 @@
 
   function formatDateShort(dateString) {
     if (!dateString) return '';
-    const date = new Date(dateString + 'T00:00:00');
+    const date = parseDate(dateString);
     return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
   }
 
@@ -786,8 +799,8 @@
       if (elements.hourlySubtitle) elements.hourlySubtitle.textContent = `24-Hour Timeline (${shortDate})`;
 
       // Extract matching hours for selected day from BOM hourly
-      const targetLocalDay = new Date(targetDateStr).toLocaleDateString();
-      const matched = hourly.filter(h => new Date(h.time).toLocaleDateString() === targetLocalDay);
+      const targetLocalDay = parseDate(targetDateStr).toLocaleDateString();
+      const matched = hourly.filter(h => parseDate(h.time).toLocaleDateString() === targetLocalDay);
 
       if (matched.length >= 8) {
         matched.forEach(h => {
@@ -806,7 +819,7 @@
         const baseMin = lowTemp ?? 12;
         const baseMax = highTemp ?? 22;
         const peakUv = uvVal || 5;
-        const targetMidnight = new Date(targetDateStr);
+        const targetMidnight = parseDate(targetDateStr);
         targetMidnight.setHours(0, 0, 0, 0);
 
         for (let hour = 0; hour < 24; hour++) {
