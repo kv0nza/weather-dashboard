@@ -64,48 +64,6 @@ Simply double-click `index.html` or open it in Chrome, Edge, Firefox, Brave, etc
 
 ---
 
-## 🐳 Docker Deployment
-
-SkyPulse can be built and run as a self-contained container using **Docker** or **Docker Compose**.
-
-### Option A: 1-Click Windows Launcher
-Double-click `run_docker.bat`. It verifies Docker daemon status, builds the image, runs the container on `http://localhost:3000`, and opens your browser.
-
-### Option B: Docker Compose (Recommended)
-```bash
-# Build and start in background
-docker compose up -d
-
-# View logs
-docker compose logs -f
-
-# Stop container
-docker compose down
-```
-
-### Option C: Docker CLI / npm Scripts
-```bash
-# Using npm shortcuts:
-npm run docker:build
-npm run docker:run
-npm run docker:stop
-
-# Or using standard Docker CLI:
-docker build -t skypulse-weather .
-docker run -d -p 3000:3000 --name skypulse-weather-dashboard skypulse-weather
-```
-Open `http://localhost:3000` in your browser.
-
-### Option D: Ultra-Lightweight Nginx Image (~23MB)
-For an ultra-compact production static web server:
-```bash
-docker build -f Dockerfile.nginx -t skypulse-weather:nginx .
-docker run -d -p 8080:80 --name skypulse-nginx skypulse-weather:nginx
-```
-Open `http://localhost:8080` in your browser.
-
----
-
 ## 🛠️ Architecture & Technology Stack
 
 - **HTML5 & Semantic Structure**: Fluid container and accessible controls.
