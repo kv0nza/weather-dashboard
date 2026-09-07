@@ -36,13 +36,24 @@
     'precipitationCurrent', 'precipPillLabel', 'windSpeed', 'windUnit', 'windDirText', 'compassNeedle',
     'humidityVal', 'humidityProgress', 'humidityState', 'uvVal', 'uvIndicator', 'uvBadge', 'uvAdvice',
     'sunriseTime', 'sunsetTime', 'rainChanceVal', 'rainProgress', 'rainAdvice', 'pressureVal', 'pressureState',
-    'dailyForecastList', 'dailyForecastTitle', 'hourlyTitle', 'hourlySubtitle', 'hourlyStrip', 'hourlyCanvas',
-    'hourlyChartContainer', 'uvMiniCanvas', 'weatherParticles', 'favoritesList', 'statusBanner', 'statusMessage',
-    'citySearchInput', 'searchResultsDropdown', 'clearSearchBtn', 'geoBtn', 'celsiusBtn', 'fahrenheitBtn',
-    'cardsTabBtn', 'chartTabBtn', 'uvTabBtn', 'cardsView', 'chartView', 'pinBtn', 'resetLiveBtn'
+    'dailyForecastList', 'dailyForecastTitle', 'hourlyTitle', 'hourlySubtitle', 'hourlyStrip',
+    'hourlyChartContainer', 'hourlyCardsView', 'hourlyTrendCanvas', 'uvMiniCanvas', 'weatherParticles',
+    'favoritesList', 'statusBanner', 'statusMessage', 'citySearchInput', 'searchResultsDropdown',
+    'clearSearchBtn', 'geoBtn', 'celsiusBtn', 'fahrenheitBtn', 'tabCardsView', 'tabChartView', 'tabUvView',
+    'pinCurrentBtn', 'resetLiveBtn', 'chartLegend'
   ];
   const elements = {};
   elIds.forEach(id => { elements[id] = typeof document !== 'undefined' ? document.getElementById(id) : null; });
+  if (typeof document !== 'undefined') {
+    elements.searchWrapper = document.querySelector('.search-wrapper');
+    elements.hourlyCanvas = elements.hourlyTrendCanvas;
+    elements.cardsTabBtn = elements.tabCardsView;
+    elements.chartTabBtn = elements.tabChartView;
+    elements.uvTabBtn = elements.tabUvView;
+    elements.cardsView = elements.hourlyCardsView;
+    elements.chartView = elements.hourlyChartContainer;
+    elements.pinBtn = elements.pinCurrentBtn;
+  }
 
   // Weather Code Interpretation
   const WMO_CODES = {
@@ -962,6 +973,13 @@
         ctx.fillText(formatTime(pt.time), pt.x, height - 12);
       }
     });
+
+    if (elements.chartLegend) {
+      elements.chartLegend.innerHTML = `
+        <span class="legend-item"><span class="legend-dot temp-dot"></span> Temperature</span>
+        <span class="legend-item"><span class="legend-dot rain-dot"></span> Rain Chance %</span>
+      `;
+    }
   }
 
   function drawHourlyUvChart(hourlyData) {
@@ -1030,6 +1048,16 @@
         ctx.fillText(formatTime(pt.time), pt.x, height - 12);
       }
     });
+
+    if (elements.chartLegend) {
+      elements.chartLegend.innerHTML = `
+        <span class="legend-item"><span class="legend-dot uv-low"></span> Low (0-2)</span>
+        <span class="legend-item"><span class="legend-dot uv-mod"></span> Mod (3-5)</span>
+        <span class="legend-item"><span class="legend-dot uv-high"></span> High (6-7)</span>
+        <span class="legend-item"><span class="legend-dot uv-veryhigh"></span> Very High (8-10)</span>
+        <span class="legend-item"><span class="legend-dot uv-extreme"></span> Extreme (11+)</span>
+      `;
+    }
   }
 
   function drawMiniUvChart(hourlyData) {
@@ -1197,34 +1225,40 @@
   // =========================================================================
 
   function setupEventListeners() {
-    elements.celsiusBtn.addEventListener('click', () => {
-      if (state.unit === 'c') return;
-      state.unit = 'c';
-      storage.setItem('skypulse_unit', 'c');
-      elements.celsiusBtn.classList.add('active');
-      elements.fahrenheitBtn.classList.remove('active');
-      renderDashboard();
-    });
+    if (elements.celsiusBtn) {
+      elements.celsiusBtn.addEventListener('click', () => {
+        if (state.unit === 'c') return;
+        state.unit = 'c';
+        storage.setItem('skypulse_unit', 'c');
+        elements.celsiusBtn.classList.add('active');
+        if (elements.fahrenheitBtn) elements.fahrenheitBtn.classList.remove('active');
+        renderDashboard();
+      });
+    }
 
-    elements.fahrenheitBtn.addEventListener('click', () => {
-      if (state.unit === 'f') return;
-      state.unit = 'f';
-      storage.setItem('skypulse_unit', 'f');
-      elements.fahrenheitBtn.classList.add('active');
-      elements.celsiusBtn.classList.remove('active');
-      renderDashboard();
-    });
+    if (elements.fahrenheitBtn) {
+      elements.fahrenheitBtn.addEventListener('click', () => {
+        if (state.unit === 'f') return;
+        state.unit = 'f';
+        storage.setItem('skypulse_unit', 'f');
+        elements.fahrenheitBtn.classList.add('active');
+        if (elements.celsiusBtn) elements.celsiusBtn.classList.remove('active');
+        renderDashboard();
+      });
+    }
 
     const setTab = (tabName, btnActive) => {
       state.activeTab = tabName;
-      [elements.cardsTabBtn, elements.chartTabBtn, elements.uvTabBtn].forEach(b => b.classList.remove('active'));
-      btnActive.classList.add('active');
+      [elements.tabCardsView, elements.tabChartView, elements.tabUvView].forEach(b => {
+        if (b) b.classList.remove('active');
+      });
+      if (btnActive) btnActive.classList.add('active');
       if (tabName === 'cards') {
-        elements.cardsView.classList.remove('hidden');
-        elements.chartView.classList.add('hidden');
+        if (elements.hourlyCardsView) elements.hourlyCardsView.classList.remove('hidden');
+        if (elements.hourlyChartContainer) elements.hourlyChartContainer.classList.add('hidden');
       } else {
-        elements.cardsView.classList.add('hidden');
-        elements.chartView.classList.remove('hidden');
+        if (elements.hourlyCardsView) elements.hourlyCardsView.classList.add('hidden');
+        if (elements.hourlyChartContainer) elements.hourlyChartContainer.classList.remove('hidden');
         if (state.activeDayHours) {
           if (tabName === 'chart') drawHourlyChart(state.activeDayHours);
           else drawHourlyUvChart(state.activeDayHours);
@@ -1232,55 +1266,73 @@
       }
     };
 
-    elements.cardsTabBtn.addEventListener('click', () => setTab('cards', elements.cardsTabBtn));
-    elements.chartTabBtn.addEventListener('click', () => setTab('chart', elements.chartTabBtn));
-    elements.uvTabBtn.addEventListener('click', () => setTab('uv', elements.uvTabBtn));
+    if (elements.tabCardsView) elements.tabCardsView.addEventListener('click', () => setTab('cards', elements.tabCardsView));
+    if (elements.tabChartView) elements.tabChartView.addEventListener('click', () => setTab('chart', elements.tabChartView));
+    if (elements.tabUvView) elements.tabUvView.addEventListener('click', () => setTab('uv', elements.tabUvView));
 
     if (elements.resetLiveBtn) {
       elements.resetLiveBtn.addEventListener('click', () => selectDay(0));
     }
 
-    elements.citySearchInput.addEventListener('input', e => {
-      const q = e.target.value;
-      clearTimeout(state.searchDebounceTimer);
-      state.searchDebounceTimer = setTimeout(() => searchCities(q), 300);
-    });
+    if (elements.citySearchInput) {
+      elements.citySearchInput.addEventListener('input', e => {
+        const q = e.target.value;
+        if (elements.searchWrapper) {
+          elements.searchWrapper.classList.toggle('has-text', q.length > 0);
+        }
+        clearTimeout(state.searchDebounceTimer);
+        state.searchDebounceTimer = setTimeout(() => searchCities(q), 300);
+      });
+    }
 
-    elements.clearSearchBtn.addEventListener('click', () => {
-      elements.citySearchInput.value = '';
-      elements.searchResultsDropdown.classList.add('hidden');
-      elements.searchResultsDropdown.innerHTML = '';
-      elements.citySearchInput.focus();
-    });
+    if (elements.clearSearchBtn) {
+      elements.clearSearchBtn.addEventListener('click', () => {
+        if (elements.citySearchInput) {
+          elements.citySearchInput.value = '';
+          elements.citySearchInput.focus();
+        }
+        if (elements.searchWrapper) {
+          elements.searchWrapper.classList.remove('has-text');
+        }
+        if (elements.searchResultsDropdown) {
+          elements.searchResultsDropdown.classList.add('hidden');
+          elements.searchResultsDropdown.innerHTML = '';
+        }
+      });
+    }
 
     document.addEventListener('click', e => {
-      if (!elements.searchResultsDropdown.contains(e.target) && e.target !== elements.citySearchInput) {
+      if (elements.searchResultsDropdown && !elements.searchResultsDropdown.contains(e.target) && e.target !== elements.citySearchInput) {
         elements.searchResultsDropdown.classList.add('hidden');
       }
     });
 
-    elements.geoBtn.addEventListener('click', () => {
-      if (!navigator.geolocation) {
-        showStatus('Geolocation is not supported by your browser.', true);
-        return;
-      }
-      showStatus('Acquiring your GPS coordinates...', false);
-      navigator.geolocation.getCurrentPosition(
-        async pos => {
-          const lat = pos.coords.latitude;
-          const lon = pos.coords.longitude;
-          const loc = await reverseGeocode(lat, lon);
-          fetchForecast(lat, lon, loc);
-        },
-        err => {
-          console.warn('Geolocation denied or error:', err);
-          showStatus('Location access was denied or unavailable.', true);
-          setTimeout(hideStatus, 3000);
+    if (elements.geoBtn) {
+      elements.geoBtn.addEventListener('click', () => {
+        if (!navigator.geolocation) {
+          showStatus('Geolocation is not supported by your browser.', true);
+          return;
         }
-      );
-    });
+        showStatus('Acquiring your GPS coordinates...', false);
+        navigator.geolocation.getCurrentPosition(
+          async pos => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            const loc = await reverseGeocode(lat, lon);
+            fetchForecast(lat, lon, loc);
+          },
+          err => {
+            console.warn('Geolocation denied or error:', err);
+            showStatus('Location access was denied or unavailable.', true);
+            setTimeout(hideStatus, 3000);
+          }
+        );
+      });
+    }
 
-    elements.pinBtn.addEventListener('click', pinCurrentLocation);
+    if (elements.pinCurrentBtn) {
+      elements.pinCurrentBtn.addEventListener('click', pinCurrentLocation);
+    }
   }
 
   function handleResize() {
@@ -1293,8 +1345,8 @@
 
   function init() {
     if (state.unit === 'f') {
-      elements.fahrenheitBtn.classList.add('active');
-      elements.celsiusBtn.classList.remove('active');
+      if (elements.fahrenheitBtn) elements.fahrenheitBtn.classList.add('active');
+      if (elements.celsiusBtn) elements.celsiusBtn.classList.remove('active');
     }
     setupEventListeners();
     loadFavorites();
@@ -1309,7 +1361,7 @@
     });
 
     if (window.ResizeObserver && elements.hourlyChartContainer) {
-      const ro = new ResizeObserver(() => handleResize());
+      const ro = new window.ResizeObserver(() => handleResize());
       ro.observe(elements.hourlyChartContainer);
     }
   }
@@ -1327,7 +1379,8 @@
       state, WMO_CODES, BOM_ICON_MAP, getBomWeatherMeta, getWeatherMeta,
       createWeatherSvg, encodeGeohash, getDegreesFromCardinal, getWindDirectionCardinal,
       convertTemp, convertSpeed, formatTime, parseDate, getWeekdayName, formatDateShort,
-      getUvCategory, buildViewModel, setupCanvas, drawSmoothLine
+      getUvCategory, buildViewModel, setupCanvas, drawSmoothLine,
+      fetchForecast, selectDay, renderDashboard
     };
   }
 })();
