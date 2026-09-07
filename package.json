@@ -1,0 +1,17 @@
+{
+  "name": "skypulse-weather-dashboard",
+  "version": "1.0.0",
+  "description": "Modern, fully-responsive weather dashboard powered in real-time by Open-Meteo",
+  "scripts": {
+    "start": "node server.js",
+    "push": "git add . && git commit -m \"Update weather dashboard\" && git push"
+  },
+  "keywords": [
+    "weather",
+    "dashboard",
+    "open-meteo",
+    "forecast"
+  ],
+  "author": "",
+  "license": "MIT"
+}
